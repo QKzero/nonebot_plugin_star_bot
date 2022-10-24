@@ -1,6 +1,6 @@
 from nonebot.log import logger
 
-logger.add('local_bot/logs/{time:YYYY-MM-DD}.log', level='ERROR', rotation='0:00')
+logger.add('star_bot/logs/{time:YYYY-MM-DD}.log', level='ERROR', rotation='0:00')
 
 @logger.catch
 def index_error(custom_list: list):

@@ -8,7 +8,6 @@ async def _standerd_checker(event: Event) -> bool:
         session_id = event.get_session_id()
         if session_id.startswith('group'):
             _, group_id, _ = session_id.split('_')
-            group_id = int(group_id)
             return group_id in group_white_list
 
     except:
