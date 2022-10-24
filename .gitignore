@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Local file
+__pycache__
+logs/*
+res/*
+src/__pycache__
