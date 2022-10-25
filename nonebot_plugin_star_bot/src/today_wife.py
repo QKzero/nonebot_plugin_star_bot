@@ -11,7 +11,7 @@ from nonebot.log import logger
 from nonebot.matcher import Matcher
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, Bot, Message, MessageSegment
 
-from star_bot import config, rules
+from .. import config, rules
 
 mkdir_path = os.path.split(os.path.realpath(__file__))[0] + '/../res/today_wife/'
 def _get_data_path():

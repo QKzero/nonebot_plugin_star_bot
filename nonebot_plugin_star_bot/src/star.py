@@ -1,7 +1,7 @@
 from nonebot import on_command
 from nonebot.adapters.onebot.v11 import Message, MessageSegment, GroupMessageEvent
 
-from star_bot import config, rules
+from .. import config, rules
 
 # descriptions = {
 #     '帮助': ['-h', '--help'],

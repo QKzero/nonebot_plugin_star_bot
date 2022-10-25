@@ -1,3 +1,4 @@
+from distutils.command.config import config
 from io import BytesIO
 import traceback
 from prettytable import PrettyTable
@@ -9,7 +10,7 @@ from nonebot.matcher import Matcher
 from nonebot.params import ArgPlainText
 from nonebot.adapters.onebot.v11 import Message, MessageSegment
 
-from star_bot import config, rules
+from .. import config, rules
 
 analyser = on_command('star analyse', rule=rules.standerd_rule, aliases={'赛后分析'}, block=True, priority=config.priority)
 

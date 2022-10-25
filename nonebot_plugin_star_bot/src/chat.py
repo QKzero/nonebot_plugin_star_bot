@@ -8,7 +8,7 @@ from nonebot.log import logger
 from nonebot.matcher import Matcher
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageSegment, PokeNotifyEvent
 
-from star_bot import config, rules
+from .. import config, rules
 
 def _load_emoji_path(path: str) -> str:
     load_path = os.path.split(os.path.realpath(__file__))[0] + path

@@ -1,6 +1,9 @@
-from nonebot.log import logger
+import os
+from nonebot.log import logger as _logger
 
-logger.add('star_bot/logs/{time:YYYY-MM-DD}.log', level='ERROR', rotation='0:00')
+logger = _logger
+
+logger.add(os.path.split(os.path.realpath(__file__))[0] + '/logs/{time:YYYY-MM-DD}.log', level='ERROR', rotation='0:00')
 
 @logger.catch
 def index_error(custom_list: list):

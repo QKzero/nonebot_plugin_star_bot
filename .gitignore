@@ -129,7 +129,5 @@ dmypy.json
 .pyre/
 
 # Local file
-__pycache__
-logs/*
-res/*
-src/__pycache__
+/nonebot_plugin_star_bot/logs
+/nonebot_plugin_star_bot/res

@@ -1,7 +1,7 @@
 from nonebot.rule import Rule
 from nonebot.adapters.onebot.v11 import Event, MessageEvent, MessageSegment
 
-from star_bot.config import group_white_list
+from .config import group_white_list
 
 async def _standerd_checker(event: Event) -> bool:
     try:
