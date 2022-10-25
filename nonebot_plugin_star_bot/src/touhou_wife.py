@@ -1,6 +1,5 @@
 import datetime
 import json
-from operator import le
 import os
 from pathlib import Path
 import random
@@ -14,17 +13,16 @@ from nonebot.adapters.onebot.v11 import GroupMessageEvent, Bot, Message, Message
 
 from .. import config, rules
 
-resource_path = os.path.split(os.path.realpath(__file__))[0] + '/../res/touhou_wife/'
-picture_path = resource_path + 'picture/'
+picture_path = os.path.split(os.path.realpath(__file__))[0] + '/../res/touhou_wife/' + 'picture/'
 def _get_data_path():
-    data_mkdir_path = resource_path + 'wife_log/'
+    data_mkdir_path = os.path.split(os.path.realpath(__file__))[0] + '/../logs/touhou_wife/'
     data_file_path = data_mkdir_path + str(datetime.date.today()) + '.json'
     if not os.path.exists(data_mkdir_path):
         os.mkdir(data_mkdir_path)
     return data_file_path
 
-if not os.path.exists(resource_path):
-    os.mkdir(resource_path)
+if not os.path.exists(picture_path):
+    os.mkdir(picture_path)
 
 if os.path.isfile(_get_data_path()):
     with open(file=_get_data_path(), mode='r') as file:
