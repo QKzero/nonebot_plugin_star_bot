@@ -13,7 +13,7 @@ from nonebot.adapters.onebot.v11 import GroupMessageEvent, Bot, Message, Message
 from .. import config, rules
 
 def _get_data_path():
-    data_mkdir_path = os.path.split(os.path.realpath(__file__))[0] + '/../logs/today_wife/'
+    data_mkdir_path = config.resource_mkdir + '/logs/today_wife/'
     data_file_path = data_mkdir_path + str(datetime.date.today()) + '.json'
     if not os.path.exists(data_mkdir_path):
         os.mkdir(data_mkdir_path)
@@ -25,12 +25,6 @@ if os.path.isfile(_get_data_path()):
 else:
     today_wife_data = {}
 
-class _WifeEventData:
-    def __init__(self, user_id: int, group_id: int, member_list: list) -> None:
-        self.user_id = user_id
-        self.group_id = group_id
-        self.member_list = member_list
-
 today_wife = on_command('star wife', rule=rules.standerd_rule, aliases={'今日老婆'}, block=True, priority=config.priority)
 
 @today_wife.handle()
@@ -38,30 +32,32 @@ async def _(bot: Bot, event: GroupMessageEvent) -> None:
     global today_wife_data
 
     try:
+        bot_id = int(bot.self_id)
         user_id = event.user_id
         group_id = event.group_id
         member_list = await bot.get_group_member_list(group_id=group_id)
         member_list = [member['user_id'] for member in member_list]
-        wife_event_data = _WifeEventData(user_id=user_id, group_id=group_id, member_list=member_list)
 
         if 'date' not in today_wife_data or today_wife_data['date'] != str(datetime.date.today()):
             today_wife_data = {}
             today_wife_data['date'] = str(datetime.date.today())
 
         if str(group_id) not in today_wife_data:
-            spouses = shuffle_wife(bot=bot, member_list=member_list)
-            today_wife_data[str(group_id)] = spouses
-            save_wife_data()
-        else:
-            spouses = today_wife_data[str(group_id)]
+            today_wife_data[str(group_id)] = {}
+        group_spouses = today_wife_data[str(group_id)]
 
-        if str(user_id) in spouses:
-            if spouses[str(user_id)] != 'singleton':
-                await send_wife(matcher=today_wife, bot=bot, wife_id=int(spouses[str(user_id)]), wife_event_data=wife_event_data)
+        if str(user_id) not in group_spouses:
+            wife_id = draw_wife(bot_id=bot_id, user_id=user_id, group_spouses=group_spouses, member_list=member_list)
+            if wife_id == -1:
+                await today_wife.send(no_wife_message(user_id=user_id))
             else:
-                await today_wife.send(singleton_message(user_id=user_id))
+                group_spouses[str(user_id)] = str(wife_id)
+                group_spouses[str(wife_id)] = str(user_id)
+                save_wife_data()
+                await send_wife(matcher=today_wife, bot=bot, user_id=user_id, wife_id=wife_id, group_id=group_id, member_list=member_list)
         else:
-            await today_wife.send(no_wife_message(user_id=user_id))
+            wife_id = int(group_spouses[str(user_id)])
+            await send_wife(matcher=today_wife, bot=bot, user_id=user_id, wife_id=wife_id, group_id=group_id, member_list=member_list)
 
     except:
         await today_wife.send('发生异常，请联系管理员')
@@ -73,31 +69,19 @@ def save_wife_data() -> None:
         json.dump(today_wife_data, file, skipkeys=True, indent=4)
 
 
-def shuffle_wife(bot: Bot, member_list: List[int]) -> Dict:
-    bot_id = int(bot.self_id)
+def draw_wife(bot_id: int, user_id: int, group_spouses: dict[str: str], member_list: list[int]) -> int:
+    pool = []
+    for member_id in member_list:
+        if str(member_id) not in group_spouses and member_id != user_id and member_id != bot_id:
+            pool.append(member_id)
 
-    pool = [i for i in member_list]
-    pool.remove(bot_id)
-    random.shuffle(pool)
+    if len(pool) > 0:
+        wife_id = pool[random.randint(0, len(pool) - 1)]
+        return wife_id
+    else:
+        return -1
 
-    spouses = {}
-
-    if len(pool) >= 2:
-        for i in range(1, len(pool), 2):
-            spouses[str(pool[i])] = str(pool[i - 1])
-            spouses[str(pool[i - 1])] = str(pool[i])
-    spouses[str(pool[len(pool) - 1])] = 'singleton'
-
-    return spouses
-
-async def send_wife(matcher: Matcher, bot: Bot, wife_id: int , wife_event_data: _WifeEventData):
-    if not wife_event_data.user_id or not wife_event_data.group_id or not wife_event_data.member_list:
-        return
-
-    user_id = wife_event_data.user_id
-    group_id = wife_event_data.group_id
-    member_list = wife_event_data.member_list
-
+async def send_wife(matcher: Matcher, bot: Bot, user_id: int, wife_id: int, group_id: int, member_list: int) -> None:
     if wife_id not in member_list:
         msg = Message()
         msg.append(MessageSegment.at(user_id=user_id))
@@ -116,10 +100,4 @@ def no_wife_message(user_id: int) -> Message:
     msg = Message()
     msg.append(MessageSegment.at(user_id=user_id))
     msg.append('今天老婆已经抽完啦，明天再来吧~')
-    return msg
-
-def singleton_message(user_id: int) -> Message:
-    msg = Message()
-    msg.append(MessageSegment.at(user_id=user_id))
-    msg.append('今天的你没有老婆呢，那个，如果不嫌弃星夜酱的话？')
     return msg

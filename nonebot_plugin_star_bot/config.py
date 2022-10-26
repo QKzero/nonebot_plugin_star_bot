@@ -8,4 +8,6 @@ if 'star_group' not in _config:
 
 group_white_list = set(_config.get('star_group', []))
 
+resource_mkdir = 'star_bot'
+
 priority = 5

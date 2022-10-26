@@ -127,7 +127,3 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-
-# Local file
-/nonebot_plugin_star_bot/logs
-/nonebot_plugin_star_bot/res

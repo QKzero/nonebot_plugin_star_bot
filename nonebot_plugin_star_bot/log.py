@@ -1,9 +1,11 @@
 import os
 from nonebot.log import logger as _logger
 
+from . import config
+
 logger = _logger
 
-logger.add(os.path.split(os.path.realpath(__file__))[0] + '/logs/code/{time:YYYY-MM-DD}.log', level='ERROR', rotation='0:00')
+logger.add(config.resource_mkdir + '/logs/code/{time:YYYY-MM-DD}.log', level='ERROR', rotation='0:00')
 
 @logger.catch
 def index_error(custom_list: list):

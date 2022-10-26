@@ -13,9 +13,9 @@ from nonebot.adapters.onebot.v11 import GroupMessageEvent, Bot, Message, Message
 
 from .. import config, rules
 
-picture_path = os.path.split(os.path.realpath(__file__))[0] + '/../res/touhou_wife/' + 'picture/'
+picture_path = config.resource_mkdir + '/touhou_wife/' + 'picture/'
 def _get_data_path():
-    data_mkdir_path = os.path.split(os.path.realpath(__file__))[0] + '/../logs/touhou_wife/'
+    data_mkdir_path = config.resource_mkdir + '/logs/touhou_wife/'
     data_file_path = data_mkdir_path + str(datetime.date.today()) + '.json'
     if not os.path.exists(data_mkdir_path):
         os.mkdir(data_mkdir_path)
@@ -39,27 +39,28 @@ async def _(bot: Bot, event: GroupMessageEvent) -> None:
     try:
         user_id = event.user_id
         group_id = event.group_id
-        member_list = await bot.get_group_member_list(group_id=group_id)
-        member_list = [member['user_id'] for member in member_list]
 
         if 'date' not in touhou_wife_data or touhou_wife_data['date'] != str(datetime.date.today()):
             touhou_wife_data = {}
             touhou_wife_data['date'] = str(datetime.date.today())
 
         if str(group_id) not in touhou_wife_data:
-            spouses = shuffle_wife(bot=bot, member_list=member_list)
-            touhou_wife_data[str(group_id)] = spouses
-            save_wife_data()
-        else:
-            spouses = touhou_wife_data[str(group_id)]
+            touhou_wife_data[str(group_id)] = {}
+        group_spouses = touhou_wife_data[str(group_id)]
 
-        if str(user_id) in spouses:
-            if spouses[str(user_id)] != 'singleton':
-                await send_wife(matcher=touhou_wife, bot=bot, user_id=user_id, wife_name=spouses[str(user_id)])
+        if str(user_id) not in group_spouses:
+            wife_name = draw_wife(group_spouses=group_spouses)
+            
+            if wife_name == '':
+                await touhou_wife.send(no_wife_message(user_id=user_id))
             else:
-                await touhou_wife.send(singleton_message(user_id=user_id))
+                group_spouses[str(user_id)] = wife_name
+                group_spouses[wife_name] = str(user_id)
+                save_wife_data()
+                await send_wife(matcher=touhou_wife, user_id=user_id, wife_name=wife_name)
         else:
-            await touhou_wife.send(no_wife_message(user_id=user_id))
+            wife_name = group_spouses[str(user_id)]
+            await send_wife(matcher=touhou_wife, user_id=user_id, wife_name=wife_name)
 
     except:
         await touhou_wife.send('发生异常，请联系管理员')
@@ -70,31 +71,21 @@ def save_wife_data() -> None:
     with open(_get_data_path(), mode='w') as file:
         json.dump(touhou_wife_data, file, skipkeys=True, indent=4)
 
+def draw_wife(group_spouses: dict[str: str]) -> str:
+    pictures = os.listdir(picture_path)
+    pictures = [i.split('.')[0] for i in pictures]
+    pool = []
+    for picture in pictures:
+        if picture not in group_spouses:
+            pool.append(picture)
 
-def shuffle_wife(bot: Bot, member_list: List[int]) -> Dict[str, str]:
-    # bot_id = bot.self_id
-
-    pool = os.listdir(picture_path)
-    pool = [i.split('.')[0] for i in pool]
-    
-    random.shuffle(member_list)
-    random.shuffle(pool)
-
-    spouses = {}
-
-    if len(member_list) <= len(pool):
-        for i in range(len(member_list)):
-            spouses[str(member_list[i])] = str(pool[i])
+    if len(pool) > 0:
+        wife_name = pool[random.randint(0, len(pool) - 1)]
+        return wife_name
     else:
-        for i in range(len(pool)):
-            spouses[str(member_list[i])] = str(pool[i])
-        for i in range(len(pool), len(member_list)):
-            spouses[str(member_list[i])] = 'singleton'
+        return ''
 
-
-    return spouses
-
-async def send_wife(matcher: Matcher, bot: Bot, user_id: int, wife_name: str):
+async def send_wife(matcher: Matcher, user_id: int, wife_name: str) -> None:
     try:
         file_path = Path(picture_path + wife_name + '.png')
 
@@ -111,11 +102,5 @@ async def send_wife(matcher: Matcher, bot: Bot, user_id: int, wife_name: str):
 def no_wife_message(user_id: int) -> Message:
     msg = Message()
     msg.append(MessageSegment.at(user_id=user_id))
-    msg.append('老婆已经抽完啦，明天再来吧~')
-    return msg
-
-def singleton_message(user_id: int) -> Message:
-    msg = Message()
-    msg.append(MessageSegment.at(user_id=user_id))
-    msg.append('今天没抽到老婆呢，明天再试试吧（')
+    msg.append('今天老婆已经抽完啦，明天再来吧~')
     return msg

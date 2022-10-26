@@ -10,17 +10,7 @@ from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageSegment, 
 
 from .. import config, rules
 
-def _load_emoji_path(path: str) -> str:
-    load_path = os.path.split(os.path.realpath(__file__))[0] + path
-    if not os.path.exists(load_path):
-        os.mkdir(load_path)
-    return load_path
-
-emoji_path = {
-    '/../res/emoji/cat/',
-    '/../res/emoji/pusheen/',
-}
-emoji_path = [_load_emoji_path(path=p) for p in emoji_path]
+emoji_path = config.resource_mkdir + '/emoji'
 
 pokeMe = on_notice(rule=rules.standerd_rule, priority=config.priority)
 
@@ -46,10 +36,7 @@ async def _(event: GroupMessageEvent) -> None:
 
 async def send_emoji(matcher: Matcher) -> None:
     try:
-        pool = []
-        for p in emoji_path:
-            if os.path.exists(p) and len(os.listdir(p)) >= 0:
-                pool.extend([p + f for f in os.listdir(p)])
+        pool = [filepath + '/' + filename for filepath, _, filenames in os.walk(emoji_path) for filename in filenames]
 
         if len(pool) > 0:
             file_path = pool[random.randint(0, len(pool) - 1)]
