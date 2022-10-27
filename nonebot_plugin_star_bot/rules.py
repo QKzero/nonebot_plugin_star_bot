@@ -15,7 +15,7 @@ async def _standerd_checker(event: Event) -> bool:
 
 standerd_rule = Rule(_standerd_checker)
 
-async def _font_atme_checker(event: MessageEvent) -> None:
+async def _font_atme_checker(event: MessageEvent) -> bool:
     # ensure message not empty
     if not event.original_message or not event.original_message[0]:
         return False
