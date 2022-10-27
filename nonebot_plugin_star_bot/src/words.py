@@ -25,6 +25,10 @@ def _get_data(path: str) -> set:
         return set(data)
 
 def _save_data(data: set, path: str) -> None:
+    mkdir_path, _ = os.path.split(path)
+    if not os.path.exists(mkdir_path):
+        os.mkdir(mkdir_path)
+
     with open(path, mode='w') as file:
         json.dump(data, file, skipkeys=True, indent=4)
 
