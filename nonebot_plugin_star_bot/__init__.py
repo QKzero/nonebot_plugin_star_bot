@@ -5,4 +5,3 @@ from .src.emoji import pokeMe, atMe
 from .src.star import star
 from .src.today_wife import today_wife
 from .src.touhou_wife import touhou_wife
-from .src.words import record_words, speak_sentence
