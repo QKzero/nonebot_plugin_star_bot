@@ -34,4 +34,14 @@ async def _(event: GroupMessageEvent) -> None:
     msg.append(MessageSegment.at(event.user_id))
     msg.append('这里是星夜酱哦，请愉悦地使用咱吧~')
 
-    await star.finish(msg)
+    await star.send(msg)
+
+star = on_command('star github', rule=rules.standerd_rule, block=True, priority=config.priority)
+
+@star.handle()
+async def _(event: GroupMessageEvent) -> None:
+    msg = Message()
+    msg.append('星夜酱身体的秘密都在这里了哦~\n')
+    msg.append('https://github.com/QKzero/nonebot_plugin_star_bot')
+
+    await star.send(msg)
