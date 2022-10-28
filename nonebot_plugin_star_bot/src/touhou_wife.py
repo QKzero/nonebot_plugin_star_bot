@@ -87,16 +87,21 @@ def draw_wife(group_spouses: dict[str: str]) -> str:
 
 async def send_wife(matcher: Matcher, user_id: int, wife_name: str) -> None:
     try:
-        file_path = Path(picture_path + wife_name + '.png')
+        pictures = os.listdir(picture_path)
+        for p in pictures:
+            if wife_name in p:
+                file_path = Path(picture_path + p)
+                break
 
         msg = Message()
         msg.append(MessageSegment.at(user_id=user_id))
         msg.append('你今日的车万老婆是\n')
-        msg.append(MessageSegment.image(file_path))
+        if file_path:
+            msg.append(MessageSegment.image(file_path))
         msg.append('「' + wife_name + '」')
         await matcher.send(msg)
     except:
-        await matcher.send('发生异常，请联系管理员')
+        await matcher.send('星夜坏掉啦，请帮忙叫主人吧')
         logger.error('发生异常，此时发送的文件为：' + file_path + '\n回溯如下：\n' + traceback.format_exc())
 
 def no_wife_message(user_id: int) -> Message:
