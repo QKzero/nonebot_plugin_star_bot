@@ -1,6 +1,8 @@
 from distutils.command.config import config
 from io import BytesIO
 import traceback
+from typing import Type
+
 from prettytable import PrettyTable
 from PIL import Image, ImageDraw, ImageFont
 
@@ -12,7 +14,8 @@ from nonebot.adapters.onebot.v11 import Message, MessageSegment
 
 from .. import config, rules
 
-analyser = on_command('star analyse', rule=rules.standerd_rule, aliases={'赛后分析'}, block=True, priority=config.priority)
+analyser = on_command('star analyse', rule=rules.group_rule, aliases={'赛后分析'}, block=True, priority=config.priority)
+
 
 @analyser.got('star analyse', prompt='请输入比赛数据')
 async def _(text: str = ArgPlainText('star analyse')) -> None:
@@ -116,18 +119,19 @@ async def damageAnalyse(data: str) -> Image.Image:
 
     # create img
     space = 5
-    font = ImageFont.truetype('simfang.ttf', 15, encoding = 'utf-8')
+    font = ImageFont.truetype('simfang.ttf', 15, encoding='utf-8')
     img = Image.new('RGB', (10, 10), (255, 255, 255, 255))
     draw = ImageDraw.Draw(img, 'RGB')
-    img_size = draw.multiline_textsize(str(table), font = font)
+    img_size = draw.multiline_textsize(str(table), font=font)
 
     img = img.resize((img_size[0] + space * 2, img_size[1] + space * 2))
     draw = ImageDraw.Draw(img, 'RGB')
-    draw.multiline_text((space, space), str(table), fill = (0, 0, 0), font = font)
+    draw.multiline_text((space, space), str(table), fill=(0, 0, 0), font=font)
 
     return img
 
-async def send(matcher: Matcher, text: str = None, image: Image.Image = None) -> None:
+
+async def send(matcher: Type[Matcher], text: str = None, image: Image.Image = None) -> None:
     if not (text or image):
         await matcher.finish()
     msg = Message()

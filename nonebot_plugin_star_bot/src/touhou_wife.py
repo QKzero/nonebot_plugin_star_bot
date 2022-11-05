@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 import random
 import traceback
-from typing import Dict, List
+from typing import Type
 
 from nonebot import on_command
 from nonebot.log import logger
@@ -14,12 +14,25 @@ from nonebot.adapters.onebot.v11 import GroupMessageEvent, Bot, Message, Message
 from .. import config, rules
 
 picture_path = config.resource_mkdir + '/touhou_wife/' + 'picture/'
-def _get_data_path():
+
+
+def _get_data_date() -> datetime.date:
+    _datetime = datetime.datetime.today()
+    date = _datetime.date()
+    hour = _datetime.time().hour
+    if hour <= 6:
+        return date - datetime.timedelta(days=1)
+    else:
+        return date
+
+
+def _get_data_path() -> str:
     data_mkdir_path = config.resource_mkdir + '/logs/touhou_wife/'
-    data_file_path = data_mkdir_path + str(datetime.date.today()) + '.json'
+    data_file_path = data_mkdir_path + str(_get_data_date()) + '.json'
     if not os.path.exists(data_mkdir_path):
         os.mkdir(data_mkdir_path)
     return data_file_path
+
 
 if not os.path.exists(picture_path):
     os.mkdir(picture_path)
@@ -30,19 +43,20 @@ if os.path.isfile(_get_data_path()):
 else:
     touhou_wife_data = {}
 
-touhou_wife = on_command('star touhou', rule=rules.standerd_rule, aliases={'车万老婆', '东方老婆'}, block=True, priority=config.priority)
+touhou_wife = on_command('star touhou', rule=rules.group_rule, aliases={'车万老婆', '东方老婆'}, block=True,
+                         priority=config.priority)
+
 
 @touhou_wife.handle()
 async def _(bot: Bot, event: GroupMessageEvent) -> None:
     global touhou_wife_data
-    
+
     try:
         user_id = event.user_id
         group_id = event.group_id
 
-        if 'date' not in touhou_wife_data or touhou_wife_data['date'] != str(datetime.date.today()):
-            touhou_wife_data = {}
-            touhou_wife_data['date'] = str(datetime.date.today())
+        if 'date' not in touhou_wife_data or touhou_wife_data['date'] != str(_get_data_date()):
+            touhou_wife_data = {'date': str(_get_data_date())}
 
         if str(group_id) not in touhou_wife_data:
             touhou_wife_data[str(group_id)] = {}
@@ -50,7 +64,7 @@ async def _(bot: Bot, event: GroupMessageEvent) -> None:
 
         if str(user_id) not in group_spouses:
             wife_name = draw_wife(group_spouses=group_spouses)
-            
+
             if wife_name == '':
                 await touhou_wife.send(no_wife_message(user_id=user_id))
             else:
@@ -71,6 +85,7 @@ def save_wife_data() -> None:
     with open(_get_data_path(), mode='w') as file:
         json.dump(touhou_wife_data, file, skipkeys=True, indent=4)
 
+
 def draw_wife(group_spouses: dict[str: str]) -> str:
     pictures = os.listdir(picture_path)
     pictures = [i.split('.')[0] for i in pictures]
@@ -85,7 +100,9 @@ def draw_wife(group_spouses: dict[str: str]) -> str:
     else:
         return ''
 
-async def send_wife(matcher: Matcher, user_id: int, wife_name: str) -> None:
+
+async def send_wife(matcher: Type[Matcher], user_id: int, wife_name: str) -> None:
+    file_path = picture_path
     try:
         pictures = os.listdir(picture_path)
         for p in pictures:
@@ -103,6 +120,7 @@ async def send_wife(matcher: Matcher, user_id: int, wife_name: str) -> None:
     except:
         await matcher.send('星夜坏掉啦，请帮忙叫主人吧')
         logger.error('发生异常，此时发送的文件为：' + file_path + '\n回溯如下：\n' + traceback.format_exc())
+
 
 def no_wife_message(user_id: int) -> Message:
     msg = Message()

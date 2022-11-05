@@ -3,7 +3,8 @@ from nonebot.adapters.onebot.v11 import Event, MessageEvent, MessageSegment
 
 from .config import group_white_list
 
-async def _standerd_checker(event: Event) -> bool:
+
+async def _group_checker(event: Event) -> bool:
     try:
         session_id = event.get_session_id()
         if session_id.startswith('group'):
@@ -13,7 +14,9 @@ async def _standerd_checker(event: Event) -> bool:
     except:
         return False
 
-standerd_rule = Rule(_standerd_checker)
+
+group_rule = Rule(_group_checker)
+
 
 async def _font_atme_checker(event: MessageEvent) -> bool:
     # ensure message not empty
@@ -24,5 +27,6 @@ async def _font_atme_checker(event: MessageEvent) -> bool:
         return segment.type == "at" and str(segment.data.get("qq", "")) == str(event.self_id)
 
     return _is_at_me_seg(event.original_message[0])
+
 
 font_atme_rule = Rule(_font_atme_checker)

@@ -3,7 +3,7 @@ import json
 import os
 import random
 import traceback
-from typing import Dict, List
+from typing import Type
 
 from nonebot import on_command
 from nonebot.log import logger
@@ -12,12 +12,24 @@ from nonebot.adapters.onebot.v11 import GroupMessageEvent, Bot, Message, Message
 
 from .. import config, rules
 
-def _get_data_path():
+
+def _get_data_date() -> datetime.date:
+    _datetime = datetime.datetime.today()
+    date = _datetime.date()
+    hour = _datetime.time().hour
+    if hour <= 6:
+        return date - datetime.timedelta(days=1)
+    else:
+        return date
+
+
+def _get_data_path() -> str:
     data_mkdir_path = config.resource_mkdir + '/logs/today_wife/'
-    data_file_path = data_mkdir_path + str(datetime.date.today()) + '.json'
+    data_file_path = data_mkdir_path + str(_get_data_date()) + '.json'
     if not os.path.exists(data_mkdir_path):
         os.mkdir(data_mkdir_path)
     return data_file_path
+
 
 if os.path.isfile(_get_data_path()):
     with open(file=_get_data_path(), mode='r') as file:
@@ -25,7 +37,8 @@ if os.path.isfile(_get_data_path()):
 else:
     today_wife_data = {}
 
-today_wife = on_command('star wife', rule=rules.standerd_rule, aliases={'今日老婆'}, block=True, priority=config.priority)
+today_wife = on_command('star wife', rule=rules.group_rule, aliases={'今日老婆'}, block=True, priority=config.priority)
+
 
 @today_wife.handle()
 async def _(bot: Bot, event: GroupMessageEvent) -> None:
@@ -38,9 +51,8 @@ async def _(bot: Bot, event: GroupMessageEvent) -> None:
         member_list = await bot.get_group_member_list(group_id=group_id)
         member_list = [member['user_id'] for member in member_list]
 
-        if 'date' not in today_wife_data or today_wife_data['date'] != str(datetime.date.today()):
-            today_wife_data = {}
-            today_wife_data['date'] = str(datetime.date.today())
+        if 'date' not in today_wife_data or today_wife_data['date'] != str(_get_data_date()):
+            today_wife_data = {'date': str(_get_data_date())}
 
         if str(group_id) not in today_wife_data:
             today_wife_data[str(group_id)] = {}
@@ -54,10 +66,12 @@ async def _(bot: Bot, event: GroupMessageEvent) -> None:
                 group_spouses[str(user_id)] = str(wife_id)
                 group_spouses[str(wife_id)] = str(user_id)
                 save_wife_data()
-                await send_wife(matcher=today_wife, bot=bot, user_id=user_id, wife_id=wife_id, group_id=group_id, member_list=member_list)
+                await send_wife(matcher=today_wife, bot=bot, user_id=user_id, wife_id=wife_id, group_id=group_id,
+                                member_list=member_list)
         else:
             wife_id = int(group_spouses[str(user_id)])
-            await send_wife(matcher=today_wife, bot=bot, user_id=user_id, wife_id=wife_id, group_id=group_id, member_list=member_list)
+            await send_wife(matcher=today_wife, bot=bot, user_id=user_id, wife_id=wife_id, group_id=group_id,
+                            member_list=member_list)
 
     except:
         await today_wife.send('发生异常，请联系管理员')
@@ -81,7 +95,9 @@ def draw_wife(bot_id: int, user_id: int, group_spouses: dict[str: str], member_l
     else:
         return -1
 
-async def send_wife(matcher: Matcher, bot: Bot, user_id: int, wife_id: int, group_id: int, member_list: int) -> None:
+
+async def send_wife(matcher: Type[Matcher], bot: Bot, user_id: int, wife_id: int, group_id: int,
+                    member_list: list[int]) -> None:
     if wife_id not in member_list:
         msg = Message()
         msg.append(MessageSegment.at(user_id=user_id))
@@ -93,8 +109,10 @@ async def send_wife(matcher: Matcher, bot: Bot, user_id: int, wife_id: int, grou
         msg.append('你今日的老婆是\n')
         # msg.append(MessageSegment.image('https://q.qlogo.cn/headimg_dl?dst_uin={0}&spec=640&img_type=jpg'.format(wife_id)))
         msg.append(MessageSegment.image('http://q1.qlogo.cn/g?b=qq&nk={0}&s=640'.format(wife_id)))
-        msg.append('{0}({1})'.format((await bot.get_group_member_info(group_id=group_id, user_id=wife_id))['nickname'], wife_id))
+        msg.append('{0}({1})'.format((await bot.get_group_member_info(group_id=group_id, user_id=wife_id))['nickname'],
+                                     wife_id))
         await matcher.send(msg)
+
 
 def no_wife_message(user_id: int) -> Message:
     msg = Message()
