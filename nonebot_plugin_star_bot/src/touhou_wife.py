@@ -20,7 +20,7 @@ def _get_data_date() -> datetime.date:
     _datetime = datetime.datetime.today()
     date = _datetime.date()
     hour = _datetime.time().hour
-    if hour <= 6:
+    if 0 <= hour < 6:
         return date - datetime.timedelta(days=1)
     else:
         return date
