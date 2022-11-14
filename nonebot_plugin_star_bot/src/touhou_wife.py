@@ -76,7 +76,7 @@ def _check_database_table(conn: sqlite3.Connection) -> None:
           'date_time date not null);'
     conn.execute(sql)
 
-    sql = 'create unique index if not exists wife_index on touhou_wife(user_id, group_id, date_time);'
+    sql = 'create unique index if not exists touhou_wife_index on touhou_wife(user_id, group_id, date_time);'
     conn.execute(sql)
 
     conn.commit()
