@@ -41,6 +41,8 @@ async def _(bot: Bot, event: GroupMessageEvent) -> None:
                 else:
                     conn.execute('insert into today_wife(user_id, group_id, wife_id, date_time) values '
                                  '({0}, {1}, {2}, "{3}")'.format(user_id, group_id, wife_id, _get_date()))
+                    conn.execute('insert into today_wife(user_id, group_id, wife_id, date_time) values '
+                                 '({0}, {1}, {2}, "{3}")'.format(wife_id, group_id, user_id, _get_date()))
                     conn.commit()
                     await send_wife(matcher=today_wife, bot=bot, user_id=user_id, wife_id=wife_id, group_id=group_id,
                                     member_list=member_list)
