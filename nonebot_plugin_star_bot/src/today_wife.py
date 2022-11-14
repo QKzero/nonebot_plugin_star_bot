@@ -1,7 +1,6 @@
 import datetime
-import json
-import os
 import random
+import sqlite3
 import traceback
 from typing import Type
 
@@ -12,8 +11,53 @@ from nonebot.adapters.onebot.v11 import GroupMessageEvent, Bot, Message, Message
 
 from .. import config, rules
 
+today_wife = on_command('star wife', rule=rules.group_rule, aliases={'今日老婆'}, block=True, priority=config.priority)
 
-def _get_data_date() -> datetime.date:
+
+@today_wife.handle()
+async def _(bot: Bot, event: GroupMessageEvent) -> None:
+    try:
+        conn = sqlite3.connect(config.database_path)
+
+        try:
+            bot_id = int(bot.self_id)
+            user_id = event.user_id
+            group_id = event.group_id
+            member_list = await bot.get_group_member_list(group_id=group_id)
+            member_list = [member['user_id'] for member in member_list]
+
+            _check_database_table(conn)
+
+            cursor = conn.execute('select wife_id from today_wife '
+                                  'where user_id={0} and group_id={1} and date_time="{2}"'
+                                  .format(user_id, group_id, _get_date()))
+            record = [i[0] for i in cursor.fetchall()]
+
+            if len(record) == 0:
+                wife_id = draw_wife(conn=conn, bot_id=bot_id, user_id=user_id, group_id=group_id,
+                                    member_list=member_list)
+                if wife_id == -1:
+                    await today_wife.send(no_wife_message(user_id=user_id))
+                else:
+                    conn.execute('insert into today_wife(user_id, group_id, wife_id, date_time) values '
+                                 '({0}, {1}, {2}, "{3}")'.format(user_id, group_id, wife_id, _get_date()))
+                    conn.commit()
+                    await send_wife(matcher=today_wife, bot=bot, user_id=user_id, wife_id=wife_id, group_id=group_id,
+                                    member_list=member_list)
+            else:
+                wife_id = record[0]
+                await send_wife(matcher=today_wife, bot=bot, user_id=user_id, wife_id=wife_id, group_id=group_id,
+                                member_list=member_list)
+
+        except:
+            raise
+
+    except:
+        await today_wife.send('星夜坏掉啦，请帮忙叫主人吧')
+        logger.error('发生异常，详细如下：\n' + traceback.format_exc())
+
+
+def _get_date() -> datetime.date:
     _datetime = datetime.datetime.today()
     date = _datetime.date()
     hour = _datetime.time().hour
@@ -23,70 +67,29 @@ def _get_data_date() -> datetime.date:
         return date
 
 
-def _get_data_path() -> str:
-    data_mkdir_path = config.resource_mkdir + '/logs/today_wife/'
-    data_file_path = data_mkdir_path + str(_get_data_date()) + '.json'
-    if not os.path.exists(data_mkdir_path):
-        os.mkdir(data_mkdir_path)
-    return data_file_path
+def _check_database_table(conn: sqlite3.Connection) -> None:
+    sql = 'create table if not exists today_wife (' \
+          'user_id integer(10) primary key not null,' \
+          'group_id integer(10) not null ,' \
+          'wife_id integer(10) not null ,' \
+          'date_time date not null);'
+    conn.execute(sql)
+
+    sql = 'create unique index if not exists wife_index on today_wife(user_id, group_id, date_time);'
+    conn.execute(sql)
+
+    conn.commit()
 
 
-if os.path.isfile(_get_data_path()):
-    with open(file=_get_data_path(), mode='r') as file:
-        today_wife_data = json.load(file)
-else:
-    today_wife_data = {}
-
-today_wife = on_command('star wife', rule=rules.group_rule, aliases={'今日老婆'}, block=True, priority=config.priority)
-
-
-@today_wife.handle()
-async def _(bot: Bot, event: GroupMessageEvent) -> None:
-    global today_wife_data
-
-    try:
-        bot_id = int(bot.self_id)
-        user_id = event.user_id
-        group_id = event.group_id
-        member_list = await bot.get_group_member_list(group_id=group_id)
-        member_list = [member['user_id'] for member in member_list]
-
-        if 'date' not in today_wife_data or today_wife_data['date'] != str(_get_data_date()):
-            today_wife_data = {'date': str(_get_data_date())}
-
-        if str(group_id) not in today_wife_data:
-            today_wife_data[str(group_id)] = {}
-        group_spouses = today_wife_data[str(group_id)]
-
-        if str(user_id) not in group_spouses:
-            wife_id = draw_wife(bot_id=bot_id, user_id=user_id, group_spouses=group_spouses, member_list=member_list)
-            if wife_id == -1:
-                await today_wife.send(no_wife_message(user_id=user_id))
-            else:
-                group_spouses[str(user_id)] = str(wife_id)
-                group_spouses[str(wife_id)] = str(user_id)
-                save_wife_data()
-                await send_wife(matcher=today_wife, bot=bot, user_id=user_id, wife_id=wife_id, group_id=group_id,
-                                member_list=member_list)
-        else:
-            wife_id = int(group_spouses[str(user_id)])
-            await send_wife(matcher=today_wife, bot=bot, user_id=user_id, wife_id=wife_id, group_id=group_id,
-                            member_list=member_list)
-
-    except:
-        await today_wife.send('发生异常，请联系管理员')
-        logger.error('发生异常，详细如下：\n' + traceback.format_exc())
-
-
-def save_wife_data() -> None:
-    with open(_get_data_path(), mode='w') as file:
-        json.dump(today_wife_data, file, skipkeys=True, indent=4)
-
-
-def draw_wife(bot_id: int, user_id: int, group_spouses: dict[str: str], member_list: list[int]) -> int:
+def draw_wife(conn: sqlite3.Connection, bot_id: int, user_id: int, group_id: int, member_list: list[int]) -> int:
     pool = []
+
+    cursor = conn.execute('select wife_id from today_wife where group_id={0} and date_time="{1}"'
+                          .format(group_id, _get_date()))
+    record = {i[0] for i in cursor.fetchall()}
+
     for member_id in member_list:
-        if str(member_id) not in group_spouses and member_id != user_id and member_id != bot_id:
+        if member_id not in record and member_id != user_id and member_id != bot_id:
             pool.append(member_id)
 
     if len(pool) > 0:

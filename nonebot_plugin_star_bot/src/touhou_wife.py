@@ -1,7 +1,6 @@
 import datetime
-import json
 import os
-from pathlib import Path
+import sqlite3
 import random
 import traceback
 from typing import Type
@@ -13,10 +12,53 @@ from nonebot.adapters.onebot.v11 import GroupMessageEvent, Bot, Message, Message
 
 from .. import config, rules
 
-picture_path = config.resource_mkdir + '/touhou_wife/' + 'picture/'
+picture_path = config.resource_mkdir / 'touhou_wife' / 'picture'
+
+touhou_wife = on_command('star touhou', rule=rules.group_rule, aliases={'车万老婆', '东方老婆'}, block=True,
+                         priority=config.priority)
 
 
-def _get_data_date() -> datetime.date:
+@touhou_wife.handle()
+async def _(bot: Bot, event: GroupMessageEvent) -> None:
+    try:
+        conn = sqlite3.connect(config.database_path)
+        try:
+            user_id = event.user_id
+            group_id = event.group_id
+
+            _check_database_table(conn)
+
+            cursor = conn.execute('select wife_name from touhou_wife '
+                                  'where user_id={0} and group_id={1} and date_time="{2}"'
+                                  .format(user_id, group_id, _get_date()))
+            record = [i[0] for i in cursor.fetchall()]
+
+            if len(record) == 0:
+                wife_name = draw_wife(conn, group_id)
+
+                if wife_name == '':
+                    await touhou_wife.send(no_wife_message(user_id=user_id))
+                else:
+                    conn.execute('insert into touhou_wife(user_id, group_id, wife_name, date_time) values '
+                                 '({0}, {1}, "{2}", "{3}")'.format(user_id, group_id, wife_name, _get_date()))
+                    conn.commit()
+                    await send_wife(matcher=touhou_wife, user_id=user_id, wife_name=wife_name)
+            else:
+                wife_name = record[0]
+                await send_wife(matcher=touhou_wife, user_id=user_id, wife_name=wife_name)
+
+        except:
+            raise
+
+        finally:
+            conn.close()
+
+    except:
+        await touhou_wife.send('星夜坏掉啦，请帮忙叫主人吧')
+        logger.error('发生异常，详细如下：\n' + traceback.format_exc())
+
+
+def _get_date() -> datetime.date:
     _datetime = datetime.datetime.today()
     date = _datetime.date()
     hour = _datetime.time().hour
@@ -26,72 +68,31 @@ def _get_data_date() -> datetime.date:
         return date
 
 
-def _get_data_path() -> str:
-    data_mkdir_path = config.resource_mkdir + '/logs/touhou_wife/'
-    data_file_path = data_mkdir_path + str(_get_data_date()) + '.json'
-    if not os.path.exists(data_mkdir_path):
-        os.mkdir(data_mkdir_path)
-    return data_file_path
+def _check_database_table(conn: sqlite3.Connection) -> None:
+    sql = 'create table if not exists touhou_wife (' \
+          'user_id integer(10) primary key not null,' \
+          'group_id integer(10) not null ,' \
+          'wife_name text(20) not null ,' \
+          'date_time date not null);'
+    conn.execute(sql)
+
+    sql = 'create unique index if not exists wife_index on touhou_wife(user_id, group_id, date_time);'
+    conn.execute(sql)
+
+    conn.commit()
 
 
-if not os.path.exists(picture_path):
-    os.mkdir(picture_path)
-
-if os.path.isfile(_get_data_path()):
-    with open(file=_get_data_path(), mode='r') as file:
-        touhou_wife_data = json.load(file)
-else:
-    touhou_wife_data = {}
-
-touhou_wife = on_command('star touhou', rule=rules.group_rule, aliases={'车万老婆', '东方老婆'}, block=True,
-                         priority=config.priority)
-
-
-@touhou_wife.handle()
-async def _(bot: Bot, event: GroupMessageEvent) -> None:
-    global touhou_wife_data
-
-    try:
-        user_id = event.user_id
-        group_id = event.group_id
-
-        if 'date' not in touhou_wife_data or touhou_wife_data['date'] != str(_get_data_date()):
-            touhou_wife_data = {'date': str(_get_data_date())}
-
-        if str(group_id) not in touhou_wife_data:
-            touhou_wife_data[str(group_id)] = {}
-        group_spouses = touhou_wife_data[str(group_id)]
-
-        if str(user_id) not in group_spouses:
-            wife_name = draw_wife(group_spouses=group_spouses)
-
-            if wife_name == '':
-                await touhou_wife.send(no_wife_message(user_id=user_id))
-            else:
-                group_spouses[str(user_id)] = wife_name
-                group_spouses[wife_name] = str(user_id)
-                save_wife_data()
-                await send_wife(matcher=touhou_wife, user_id=user_id, wife_name=wife_name)
-        else:
-            wife_name = group_spouses[str(user_id)]
-            await send_wife(matcher=touhou_wife, user_id=user_id, wife_name=wife_name)
-
-    except:
-        await touhou_wife.send('发生异常，请联系管理员')
-        logger.error('发生异常，详细如下：\n' + traceback.format_exc())
-
-
-def save_wife_data() -> None:
-    with open(_get_data_path(), mode='w') as file:
-        json.dump(touhou_wife_data, file, skipkeys=True, indent=4)
-
-
-def draw_wife(group_spouses: dict[str: str]) -> str:
+def draw_wife(conn: sqlite3.Connection, group_id: int) -> str:
     pictures = os.listdir(picture_path)
     pictures = [i.split('.')[0] for i in pictures]
     pool = []
+
+    cursor = conn.execute('select wife_name from touhou_wife where group_id={0} and date_time="{1}"'
+                          .format(group_id, _get_date()))
+    record = {i[0] for i in cursor.fetchall()}
+
     for picture in pictures:
-        if picture not in group_spouses:
+        if picture not in record:
             pool.append(picture)
 
     if len(pool) > 0:
@@ -107,7 +108,7 @@ async def send_wife(matcher: Type[Matcher], user_id: int, wife_name: str) -> Non
         pictures = os.listdir(picture_path)
         for p in pictures:
             if wife_name in p:
-                file_path = Path(picture_path + p)
+                file_path = picture_path / p
                 break
 
         msg = Message()
@@ -118,8 +119,7 @@ async def send_wife(matcher: Type[Matcher], user_id: int, wife_name: str) -> Non
         msg.append('「' + wife_name + '」')
         await matcher.send(msg)
     except:
-        await matcher.send('星夜坏掉啦，请帮忙叫主人吧')
-        logger.error('发生异常，此时发送的文件为：' + file_path + '\n回溯如下：\n' + traceback.format_exc())
+        logger.error('发生异常，此时发送的文件为：' + str(file_path) + '\n回溯如下：\n' + traceback.format_exc())
 
 
 def no_wife_message(user_id: int) -> Message:

@@ -11,7 +11,7 @@ from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageSegment, 
 
 from .. import config, rules
 
-emoji_path = config.resource_mkdir + '/emoji'
+emoji_path = config.resource_mkdir / 'emoji'
 
 pokeMe = on_notice(rule=rules.group_rule, priority=config.priority)
 

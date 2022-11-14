@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from nonebot import get_driver
 from nonebot.log import logger
 
@@ -8,6 +10,7 @@ if 'star_group' not in _config:
 
 group_white_list = set(_config.get('star_group', []))
 
-resource_mkdir = 'star_bot'
+resource_mkdir = Path('star_bot')
+database_path = resource_mkdir / 'star.sqlite'
 
 priority = 5
