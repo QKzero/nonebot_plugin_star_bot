@@ -1,5 +1,4 @@
 import datetime
-import random
 import sqlite3
 import traceback
 from typing import Type
@@ -9,6 +8,7 @@ from nonebot.log import logger
 from nonebot.matcher import Matcher
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, Bot, Message, MessageSegment
 
+from . import util
 from .. import config, rules
 
 today_wife = on_command('star wife', rule=rules.group_rule, aliases={'今日老婆'}, block=True, priority=config.priority)
@@ -84,19 +84,26 @@ def _check_database_table(conn: sqlite3.Connection) -> None:
 
 
 def draw_wife(conn: sqlite3.Connection, bot_id: int, user_id: int, group_id: int, member_list: list[int]) -> int:
-    pool = []
-
     cursor = conn.execute('select wife_id from today_wife where group_id={0} and date_time="{1}"'
                           .format(group_id, _get_date()))
-    record = {i[0] for i in cursor.fetchall()}
+    exclusion = {i[0] for i in cursor.fetchall()}
 
+    pool = []
     for member_id in member_list:
-        if member_id not in record and member_id != user_id and member_id != bot_id:
+        if member_id not in exclusion and member_id != user_id and member_id != bot_id:
             pool.append(member_id)
 
     if len(pool) > 0:
-        wife_id = pool[random.randint(0, len(pool) - 1)]
-        return wife_id
+        cursor = conn.execute('select wife_id, count(wife_id) as counts '
+                              'from today_wife '
+                              'where group_id={0} and user_id={1} '
+                              'group by wife_id '
+                              'order by counts;'
+                              .format(group_id, user_id))
+        draw_count = {i[0]: i[1] for i in cursor.fetchall()}
+
+        index = util.get_pseudorandom_weights(pool, draw_count)
+        return pool[index]
     else:
         return -1
 

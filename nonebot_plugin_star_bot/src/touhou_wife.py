@@ -1,7 +1,6 @@
 import datetime
 import os
 import sqlite3
-import random
 import traceback
 from typing import Type
 
@@ -10,6 +9,7 @@ from nonebot.log import logger
 from nonebot.matcher import Matcher
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, Bot, Message, MessageSegment
 
+from . import util
 from .. import config, rules
 
 picture_path = config.resource_mkdir / 'touhou_wife' / 'picture'
@@ -34,7 +34,7 @@ async def _(bot: Bot, event: GroupMessageEvent) -> None:
             record = [i[0] for i in cursor.fetchall()]
 
             if len(record) == 0:
-                wife_name = draw_wife(conn, group_id)
+                wife_name = draw_wife(conn, group_id, user_id)
 
                 if wife_name == '':
                     await touhou_wife.send(no_wife_message(user_id=user_id))
@@ -82,22 +82,31 @@ def _check_database_table(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def draw_wife(conn: sqlite3.Connection, group_id: int) -> str:
+def draw_wife(conn: sqlite3.Connection, group_id: int, user_id: int) -> str:
+    def _exclude_data(data: list, exclusion: set) -> list:
+        data_dp = []
+        for d in data:
+            if d not in exclusion:
+                data_dp.append(d)
+        return data_dp
+
     pictures = os.listdir(picture_path)
     pictures = [i.split('.')[0] for i in pictures]
-    pool = []
 
     cursor = conn.execute('select wife_name from touhou_wife where group_id={0} and date_time="{1}"'
                           .format(group_id, _get_date()))
-    record = {i[0] for i in cursor.fetchall()}
-
-    for picture in pictures:
-        if picture not in record:
-            pool.append(picture)
+    pool = _exclude_data(pictures, {i[0] for i in cursor.fetchall()})
 
     if len(pool) > 0:
-        wife_name = pool[random.randint(0, len(pool) - 1)]
-        return wife_name
+        cursor = conn.execute('select wife_name, count(*) as counts '
+                              'from touhou_wife where group_id={0} and user_id={1} '
+                              'group by wife_name order by counts;'
+                              .format(group_id, user_id))
+        draw_count = {i[0]: i[1] for i in cursor.fetchall()}
+
+        index = util.get_pseudorandom_weights(pool, draw_count)
+        return pool[index]
+
     else:
         return ''
 
@@ -118,6 +127,7 @@ async def send_wife(matcher: Type[Matcher], user_id: int, wife_name: str) -> Non
             msg.append(MessageSegment.image(file_path))
         msg.append('「' + wife_name + '」')
         await matcher.send(msg)
+
     except:
         logger.error('发生异常，此时发送的文件为：' + str(file_path) + '\n回溯如下：\n' + traceback.format_exc())
 
