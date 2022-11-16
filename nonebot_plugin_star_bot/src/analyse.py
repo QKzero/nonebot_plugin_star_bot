@@ -14,7 +14,7 @@ from nonebot.adapters.onebot.v11 import Message, MessageSegment
 
 from .. import config, rules
 
-analyser = on_command('star analyse', rule=rules.group_rule, aliases={'赛后分析'}, block=True, priority=config.priority)
+analyser = on_command('star analyse', rule=rules.group_rule, aliases={'赛后分析'}, block=True, priority=config.normal_priority)
 
 
 @analyser.got('star analyse', prompt='请输入比赛数据')

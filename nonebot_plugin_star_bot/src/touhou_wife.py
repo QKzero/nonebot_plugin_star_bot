@@ -15,7 +15,7 @@ from .. import config, rules
 picture_path = config.resource_mkdir / 'touhou_wife' / 'picture'
 
 touhou_wife = on_command('star touhou', rule=rules.group_rule, aliases={'车万老婆', '东方老婆'}, block=True,
-                         priority=config.priority)
+                         priority=config.normal_priority)
 
 
 @touhou_wife.handle()
@@ -30,22 +30,24 @@ async def _(bot: Bot, event: GroupMessageEvent) -> None:
 
             cursor = conn.execute('select wife_name from touhou_wife '
                                   'where user_id={0} and group_id={1} and date_time="{2}"'
-                                  .format(user_id, group_id, _get_date()))
+                                  .format(user_id, group_id, _get_wife_date()))
             record = [i[0] for i in cursor.fetchall()]
 
             if len(record) == 0:
-                wife_name = draw_wife(conn, group_id, user_id)
+                wife_name = _draw_wife(conn, group_id, user_id)
 
                 if wife_name == '':
-                    await touhou_wife.send(no_wife_message(user_id=user_id))
+                    await touhou_wife.send(_no_wife_message(user_id=user_id))
                 else:
                     conn.execute('insert into touhou_wife(user_id, group_id, wife_name, date_time) values '
-                                 '({0}, {1}, "{2}", "{3}")'.format(user_id, group_id, wife_name, _get_date()))
+                                 '({0}, {1}, "{2}", "{3}")'.format(user_id, group_id, wife_name, _get_wife_date()))
                     conn.commit()
-                    await send_wife(matcher=touhou_wife, user_id=user_id, wife_name=wife_name)
+                    await _send_wife(matcher=touhou_wife, user_id=user_id, wife_name=wife_name)
             else:
                 wife_name = record[0]
-                await send_wife(matcher=touhou_wife, user_id=user_id, wife_name=wife_name)
+                await _send_wife(matcher=touhou_wife, user_id=user_id, wife_name=wife_name)
+
+            await _wife_date_remind(matcher=touhou_wife)
 
         except:
             raise
@@ -58,7 +60,7 @@ async def _(bot: Bot, event: GroupMessageEvent) -> None:
         logger.error('发生异常，详细如下：\n' + traceback.format_exc())
 
 
-def _get_date() -> datetime.date:
+def _get_wife_date() -> datetime.date:
     _datetime = datetime.datetime.today()
     date = _datetime.date()
     hour = _datetime.time().hour
@@ -67,6 +69,10 @@ def _get_date() -> datetime.date:
     else:
         return date
 
+
+async def _wife_date_remind(matcher: Type[Matcher]) -> None:
+    if datetime.date.today() != _get_wife_date():
+        await matcher.send('老婆在早上六点才会刷新噢，早点休息吧~')
 
 def _check_database_table(conn: sqlite3.Connection) -> None:
     sql = 'create table if not exists touhou_wife (' \
@@ -82,8 +88,8 @@ def _check_database_table(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def draw_wife(conn: sqlite3.Connection, group_id: int, user_id: int) -> str:
-    def _exclude_data(data: list, exclusion: set) -> list:
+def _draw_wife(conn: sqlite3.Connection, group_id: int, user_id: int) -> str:
+    def __exclude_data(data: list, exclusion: set) -> list:
         data_dp = []
         for d in data:
             if d not in exclusion:
@@ -94,8 +100,8 @@ def draw_wife(conn: sqlite3.Connection, group_id: int, user_id: int) -> str:
     pictures = [i.split('.')[0] for i in pictures]
 
     cursor = conn.execute('select wife_name from touhou_wife where group_id={0} and date_time="{1}"'
-                          .format(group_id, _get_date()))
-    pool = _exclude_data(pictures, {i[0] for i in cursor.fetchall()})
+                          .format(group_id, _get_wife_date()))
+    pool = __exclude_data(pictures, {i[0] for i in cursor.fetchall()})
 
     if len(pool) > 0:
         cursor = conn.execute('select wife_name, count(*) as counts '
@@ -111,7 +117,7 @@ def draw_wife(conn: sqlite3.Connection, group_id: int, user_id: int) -> str:
         return ''
 
 
-async def send_wife(matcher: Type[Matcher], user_id: int, wife_name: str) -> None:
+async def _send_wife(matcher: Type[Matcher], user_id: int, wife_name: str) -> None:
     file_path = picture_path
     try:
         pictures = os.listdir(picture_path)
@@ -132,7 +138,7 @@ async def send_wife(matcher: Type[Matcher], user_id: int, wife_name: str) -> Non
         logger.error('发生异常，此时发送的文件为：' + str(file_path) + '\n回溯如下：\n' + traceback.format_exc())
 
 
-def no_wife_message(user_id: int) -> Message:
+def _no_wife_message(user_id: int) -> Message:
     msg = Message()
     msg.append(MessageSegment.at(user_id=user_id))
     msg.append('今天老婆已经抽完啦，明天再来吧~')

@@ -13,7 +13,7 @@ from .. import config, rules
 
 emoji_path = config.resource_mkdir / 'emoji'
 
-pokeMe = on_notice(rule=rules.group_rule, priority=config.priority)
+pokeMe = on_notice(rule=rules.group_rule, priority=config.normal_priority)
 
 
 @pokeMe.handle()
@@ -22,7 +22,7 @@ async def _(event: PokeNotifyEvent) -> None:
         await send_emoji(pokeMe)
 
 
-atMe = on_message(rule=rules.group_rule & rules.font_atme_rule, priority=config.priority)
+atMe = on_message(rule=rules.group_rule & rules.font_atme_rule, priority=config.normal_priority)
 
 
 @atMe.handle()

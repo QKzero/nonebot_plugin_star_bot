@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name = "nonebot-plugin-star-bot",
-    version = "1.0.0",
+    version = "1.1.0",
     author = "QKzero",
     description = "A plugin based on NoneBot2 and personal used.",
     long_description = long_description,
