@@ -11,7 +11,8 @@ from nonebot.adapters.onebot.v11 import GroupMessageEvent, Bot, Message, Message
 from . import util
 from .. import config, rules
 
-today_wife = on_command('star wife', rule=rules.group_rule, aliases={'今日老婆'}, block=True, priority=config.normal_priority)
+today_wife = on_command('star wife', rule=rules.group_rule, aliases={'今日老婆'}, block=True,
+                        priority=config.normal_priority)
 
 
 @today_wife.handle()
@@ -26,11 +27,11 @@ async def _(bot: Bot, event: GroupMessageEvent) -> None:
             member_list = await bot.get_group_member_list(group_id=group_id)
             member_list = [member['user_id'] for member in member_list]
 
-            _check_database_table(conn)
+            util.check_database_table(conn)
 
             cursor = conn.execute('select wife_id from today_wife '
                                   'where user_id={0} and group_id={1} and date_time="{2}"'
-                                  .format(user_id, group_id, _get_wife_date()))
+                                  .format(user_id, group_id, util.get_wife_date()))
             record = [i[0] for i in cursor.fetchall()]
 
             if len(record) == 0:
@@ -40,9 +41,9 @@ async def _(bot: Bot, event: GroupMessageEvent) -> None:
                     await today_wife.send(_no_wife_message(user_id=user_id))
                 else:
                     conn.execute('insert into today_wife(user_id, group_id, wife_id, date_time) values '
-                                 '({0}, {1}, {2}, "{3}")'.format(user_id, group_id, wife_id, _get_wife_date()))
+                                 '({0}, {1}, {2}, "{3}")'.format(user_id, group_id, wife_id, util.get_wife_date()))
                     conn.execute('insert into today_wife(user_id, group_id, wife_id, date_time) values '
-                                 '({0}, {1}, {2}, "{3}")'.format(wife_id, group_id, user_id, _get_wife_date()))
+                                 '({0}, {1}, {2}, "{3}")'.format(wife_id, group_id, user_id, util.get_wife_date()))
                     conn.commit()
                     await _send_wife(matcher=today_wife, bot=bot, user_id=user_id, wife_id=wife_id, group_id=group_id,
                                      member_list=member_list)
@@ -51,7 +52,7 @@ async def _(bot: Bot, event: GroupMessageEvent) -> None:
                 await _send_wife(matcher=today_wife, bot=bot, user_id=user_id, wife_id=wife_id, group_id=group_id,
                                  member_list=member_list)
 
-            await _wife_date_remind(matcher=today_wife)
+                await util.wife_date_remind(matcher=today_wife)
 
         except:
             raise
@@ -61,38 +62,9 @@ async def _(bot: Bot, event: GroupMessageEvent) -> None:
         logger.error('发生异常，详细如下：\n' + traceback.format_exc())
 
 
-def _get_wife_date() -> datetime.date:
-    _datetime = datetime.datetime.today()
-    date = _datetime.date()
-    hour = _datetime.time().hour
-    if 0 <= hour < 6:
-        return date - datetime.timedelta(days=1)
-    else:
-        return date
-
-
-async def _wife_date_remind(matcher: Type[Matcher]) -> None:
-    if datetime.date.today() != _get_wife_date():
-        await matcher.send('老婆在早上六点才会刷新噢，早点休息吧~')
-
-
-def _check_database_table(conn: sqlite3.Connection) -> None:
-    sql = 'create table if not exists today_wife (' \
-          'user_id integer(10) primary key not null,' \
-          'group_id integer(10) not null ,' \
-          'wife_id integer(10) not null ,' \
-          'date_time date not null);'
-    conn.execute(sql)
-
-    sql = 'create unique index if not exists today_wife_index on today_wife(user_id, group_id, date_time);'
-    conn.execute(sql)
-
-    conn.commit()
-
-
 def _draw_wife(conn: sqlite3.Connection, bot_id: int, user_id: int, group_id: int, member_list: list[int]) -> int:
     cursor = conn.execute('select wife_id from today_wife where group_id={0} and date_time="{1}"'
-                          .format(group_id, _get_wife_date()))
+                          .format(group_id, util.get_wife_date()))
     exclusion = {i[0] for i in cursor.fetchall()}
 
     pool = []

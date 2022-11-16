@@ -26,11 +26,11 @@ async def _(bot: Bot, event: GroupMessageEvent) -> None:
             user_id = event.user_id
             group_id = event.group_id
 
-            _check_database_table(conn)
+            util.check_database_table(conn)
 
             cursor = conn.execute('select wife_name from touhou_wife '
                                   'where user_id={0} and group_id={1} and date_time="{2}"'
-                                  .format(user_id, group_id, _get_wife_date()))
+                                  .format(user_id, group_id, util.get_wife_date()))
             record = [i[0] for i in cursor.fetchall()]
 
             if len(record) == 0:
@@ -40,14 +40,14 @@ async def _(bot: Bot, event: GroupMessageEvent) -> None:
                     await touhou_wife.send(_no_wife_message(user_id=user_id))
                 else:
                     conn.execute('insert into touhou_wife(user_id, group_id, wife_name, date_time) values '
-                                 '({0}, {1}, "{2}", "{3}")'.format(user_id, group_id, wife_name, _get_wife_date()))
+                                 '({0}, {1}, "{2}", "{3}")'.format(user_id, group_id, wife_name, util.get_wife_date()))
                     conn.commit()
                     await _send_wife(matcher=touhou_wife, user_id=user_id, wife_name=wife_name)
             else:
                 wife_name = record[0]
                 await _send_wife(matcher=touhou_wife, user_id=user_id, wife_name=wife_name)
 
-            await _wife_date_remind(matcher=touhou_wife)
+                await util.wife_date_remind(matcher=touhou_wife)
 
         except:
             raise
@@ -58,34 +58,6 @@ async def _(bot: Bot, event: GroupMessageEvent) -> None:
     except:
         await touhou_wife.send('星夜坏掉啦，请帮忙叫主人吧')
         logger.error('发生异常，详细如下：\n' + traceback.format_exc())
-
-
-def _get_wife_date() -> datetime.date:
-    _datetime = datetime.datetime.today()
-    date = _datetime.date()
-    hour = _datetime.time().hour
-    if 0 <= hour < 6:
-        return date - datetime.timedelta(days=1)
-    else:
-        return date
-
-
-async def _wife_date_remind(matcher: Type[Matcher]) -> None:
-    if datetime.date.today() != _get_wife_date():
-        await matcher.send('老婆在早上六点才会刷新噢，早点休息吧~')
-
-def _check_database_table(conn: sqlite3.Connection) -> None:
-    sql = 'create table if not exists touhou_wife (' \
-          'user_id integer(10) primary key not null,' \
-          'group_id integer(10) not null ,' \
-          'wife_name text(20) not null ,' \
-          'date_time date not null);'
-    conn.execute(sql)
-
-    sql = 'create unique index if not exists touhou_wife_index on touhou_wife(user_id, group_id, date_time);'
-    conn.execute(sql)
-
-    conn.commit()
 
 
 def _draw_wife(conn: sqlite3.Connection, group_id: int, user_id: int) -> str:
@@ -100,7 +72,7 @@ def _draw_wife(conn: sqlite3.Connection, group_id: int, user_id: int) -> str:
     pictures = [i.split('.')[0] for i in pictures]
 
     cursor = conn.execute('select wife_name from touhou_wife where group_id={0} and date_time="{1}"'
-                          .format(group_id, _get_wife_date()))
+                          .format(group_id, util.get_wife_date()))
     pool = __exclude_data(pictures, {i[0] for i in cursor.fetchall()})
 
     if len(pool) > 0:
