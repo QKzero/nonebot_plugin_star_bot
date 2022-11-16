@@ -2,7 +2,7 @@ import bisect
 import random
 
 
-def get_pseudorandom_weights(pool: list[int], draw_count: dict[int, int]) -> int:
+def wife_pseudorandom(pool: list[int], draw_count: dict[int, int]) -> int:
     weight = []
     if len(draw_count) > 0:
         max_count = max(draw_count.values())
@@ -18,6 +18,4 @@ def get_pseudorandom_weights(pool: list[int], draw_count: dict[int, int]) -> int
         else:
             weight.append(pre_weight + max_count + 1)
 
-    print(pool)
-    print(weight)
     return bisect.bisect_right(weight, random.randint(weight[0], weight[len(weight) - 1])) - 1

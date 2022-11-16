@@ -104,7 +104,7 @@ def draw_wife(conn: sqlite3.Connection, group_id: int, user_id: int) -> str:
                               .format(group_id, user_id))
         draw_count = {i[0]: i[1] for i in cursor.fetchall()}
 
-        index = util.get_pseudorandom_weights(pool, draw_count)
+        index = util.wife_pseudorandom(pool, draw_count)
         return pool[index]
 
     else:
