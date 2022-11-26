@@ -95,14 +95,27 @@ async def _send_wife(matcher: Type[Matcher], bot: Bot, user_id: int, wife_id: in
         msg.append('你的老婆神隐了哦（')
         await matcher.send(msg)
     else:
-        msg = Message()
-        msg.append(MessageSegment.at(user_id=user_id))
-        msg.append('你今日的老婆是\n')
-        # msg.append(MessageSegment.image('https://q.qlogo.cn/headimg_dl?dst_uin={0}&spec=640&img_type=jpg'.format(wife_id)))
-        msg.append(MessageSegment.image('http://q1.qlogo.cn/g?b=qq&nk={0}&s=640'.format(wife_id)))
-        msg.append('{0}({1})'.format((await bot.get_group_member_info(group_id=group_id, user_id=wife_id))['nickname'],
-                                     wife_id))
-        await matcher.send(msg)
+        try:
+            msg = Message()
+            msg.append(MessageSegment.at(user_id=user_id))
+            msg.append('你今日的老婆是\n')
+            # msg.append(MessageSegment.image('https://q.qlogo.cn/headimg_dl?dst_uin={0}&spec=640&img_type=jpg'.format(wife_id)))
+            msg.append(MessageSegment.image('http://q1.qlogo.cn/g?b=qq&nk={0}&s=640'.format(wife_id)))
+            msg.append(
+                '{0}({1})'.format((await bot.get_group_member_info(group_id=group_id, user_id=wife_id))['nickname'],
+                                  wife_id))
+            await matcher.send(msg)
+
+        except:
+            logger.warning('今日老婆消息发送失败，此时发送的账号是{0}'.format(wife_id))
+
+            msg = Message()
+            msg.append(MessageSegment.at(user_id=user_id))
+            msg.append('你今日的老婆是\n')
+            msg.append(
+                '{0}({1})'.format((await bot.get_group_member_info(group_id=group_id, user_id=wife_id))['nickname'],
+                                  wife_id))
+            await matcher.send(msg)
 
 
 def _no_wife_message(user_id: int) -> Message:

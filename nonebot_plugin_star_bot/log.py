@@ -5,7 +5,7 @@ from . import config
 
 logger = _logger
 
-logger.add(config.resource_mkdir / 'logs' / '{time:YYYY-MM-DD}.log', level='ERROR', rotation='0:00')
+logger.add(config.resource_mkdir / 'logs' / '{time:YYYY-MM-DD}.log', level='WARNING', rotation='0:00')
 
 
 @logger.catch
