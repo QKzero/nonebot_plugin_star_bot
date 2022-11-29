@@ -1,3 +1,4 @@
+import random
 import traceback
 from io import BytesIO
 import os
@@ -55,8 +56,8 @@ async def _(event: GroupMessageEvent) -> None:
 
             font_size = 15  # 字体大小
             padding = 5  # 内边距
-            length = length * font_size + padding * 2
-            width = width * font_size + padding * 3
+            length = length * (font_size - 1) + padding * 2
+            width = width * (font_size + 2) + padding * 2
 
             img = Image.new('RGB', (length, width), (255, 255, 255))
             draw = ImageDraw.Draw(img)
@@ -71,5 +72,41 @@ async def _(event: GroupMessageEvent) -> None:
             await star_help.send(msg)
 
     except:
-        await star_help.send('星夜坏掉啦，请帮忙叫主人吧')
+        logger.error('发生异常，详细如下：\n' + traceback.format_exc())
+
+
+star_roll = on_command('star roll', rule=rules.group_rule, block=True, priority=config.normal_priority)
+
+
+@star_roll.handle()
+async def _(event: GroupMessageEvent) -> None:
+    try:
+        msg = event.get_message()
+
+        if not msg or not msg[0]:
+            log_content = '掷色子空过，'
+            if not msg:
+                log_content += '消息为空'
+            elif not msg[0]:
+                log_content += '首消息为空'
+            logger.warning(log_content)
+            return
+
+        text = str(msg[0]).split(' ')
+        a = 0
+        b = 1
+        if len(text) == 3 and text[2].isdigit():
+            b = int(text[2])
+        elif len(text) >= 4 and text[2].isdigit() and text[3].isdigit():
+            a = int(text[2])
+            b = int(text[3])
+            if a > b:
+                a, b = b, a
+
+        await star_roll.send(
+            '({0}-{1}): {2}'.format(a, b, random.randint(a, b))
+        )
+
+
+    except:
         logger.error('发生异常，详细如下：\n' + traceback.format_exc())
