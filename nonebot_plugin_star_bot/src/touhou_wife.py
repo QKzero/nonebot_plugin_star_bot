@@ -1,5 +1,7 @@
+import bisect
 import datetime
 import os
+import random
 import sqlite3
 import traceback
 from typing import Type
@@ -26,7 +28,7 @@ async def _(bot: Bot, event: GroupMessageEvent) -> None:
             user_id = event.user_id
             group_id = event.group_id
 
-            util.check_database_table(conn)
+            _check_database_table(conn)
 
             cursor = conn.execute('select wife_name from touhou_wife '
                                   'where user_id={0} and group_id={1} and date_time="{2}"'
@@ -56,8 +58,26 @@ async def _(bot: Bot, event: GroupMessageEvent) -> None:
             conn.close()
 
     except:
-        await touhou_wife.send('星夜坏掉啦，请帮忙叫主人吧')
         logger.error('发生异常，详细如下：\n' + traceback.format_exc())
+
+
+def _wife_pseudorandom(pool: list[int], draw_count: dict[int, int]) -> int:
+    weight = []
+    if len(draw_count) > 0:
+        max_count = max(draw_count.values())
+    else:
+        max_count = 0
+
+    for p in pool:
+        pre_weight = 0
+        if len(weight) > 0:
+            pre_weight += weight[len(weight) - 1]
+        if p in draw_count:
+            weight.append(pre_weight + max_count - draw_count[p] + 1)
+        else:
+            weight.append(pre_weight + max_count + 1)
+
+    return bisect.bisect_right(weight, random.randint(weight[0], weight[len(weight) - 1])) - 1
 
 
 def _draw_wife(conn: sqlite3.Connection, group_id: int, user_id: int) -> str:
@@ -82,7 +102,7 @@ def _draw_wife(conn: sqlite3.Connection, group_id: int, user_id: int) -> str:
                               .format(group_id, user_id))
         draw_count = {i[0]: i[1] for i in cursor.fetchall()}
 
-        index = util.wife_pseudorandom(pool, draw_count)
+        index = _wife_pseudorandom(pool, draw_count)
         return pool[index]
 
     else:
@@ -115,3 +135,17 @@ def _no_wife_message(user_id: int) -> Message:
     msg.append(MessageSegment.at(user_id=user_id))
     msg.append('今天老婆已经抽完啦，明天再来吧~')
     return msg
+
+
+def _check_database_table(conn: sqlite3.Connection) -> None:
+    sql = 'create table if not exists today_wife (' \
+          'user_id integer(10) not null,' \
+          'group_id integer(10) not null ,' \
+          'wife_name text(30) not null ,' \
+          'date_time date not null);'
+    conn.execute(sql)
+
+    sql = 'create unique index if not exists today_wife_index on today_wife(user_id, group_id, date_time);'
+    conn.execute(sql)
+
+    conn.commit()

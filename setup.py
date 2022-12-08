@@ -4,13 +4,13 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name = "nonebot-plugin-star-bot",
-    version = "1.1.2",
-    author = "QKzero",
-    description = "A plugin based on NoneBot2 and personal used.",
-    long_description = long_description,
-    long_description_content_type = "text/markdown",
-    url = "https://github.com/QKzero/nonebot_plugin_star_bot",
+    name="nonebot-plugin-star-bot",
+    version="1.2.1",
+    author="QKzero",
+    description="A plugin based on NoneBot2 and personal used.",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url="https://github.com/QKzero/nonebot_plugin_star_bot",
     project_urls={
         "Bug Tracker": "https://github.com/QKzero/nonebot_plugin_star_bot",
     },
