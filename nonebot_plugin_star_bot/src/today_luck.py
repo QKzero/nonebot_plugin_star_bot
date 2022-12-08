@@ -1,4 +1,7 @@
+import json
 import math
+import os
+import pathlib
 import random
 import sqlite3
 import traceback
@@ -12,7 +15,8 @@ from nonebot.adapters.onebot.v11 import Message, MessageSegment, GroupMessageEve
 from . import util
 from .. import config, rules
 
-today_luck = on_command('今日运势', rule=rules.group_rule, block=True, priority=config.lowest_priority)
+today_luck = on_command('star luck', rule=rules.group_rule, aliases={'今日运势'}, block=True,
+                        priority=config.lowest_priority)
 
 
 @today_luck.handle()
@@ -52,20 +56,27 @@ async def _(event: GroupMessageEvent) -> None:
         logger.error('发生异常，详细如下：\n' + traceback.format_exc())
 
 
-def _luck_translate(luck_param: int):
-    luck_option = ['大凶', '凶', '小凶', '普', '小吉', '中吉', '大吉']
-    luck_result = luck_option[math.floor(len(luck_option) * luck_param * 0.01)]  # 百分比向下取整
+def _draw_luck(luck_param: int) -> str:
+    file_path = pathlib.Path(os.path.dirname(__file__)) / '..' / 'res' / 'luck_sentence.json'
+    with open(file_path, mode='r', encoding='utf-8') as file:
+        luck_sentence = json.load(file)
 
-    return luck_result
+        luck_option = tuple(luck_sentence.keys())
+        luck_result = luck_option[math.floor(len(luck_option) * luck_param * 0.01)]  # 百分比向下取整
+
+        luck_text = '你今日的运势是「' + luck_result + '」'
+        luck_text += luck_sentence[luck_result][random.randint(0, len(luck_sentence[luck_result]) - 1)]
+
+        return luck_text
 
 
 async def _send_luck(matcher: Type[Matcher], user_id: int, luck_param: int) -> None:
     msg = Message()
     msg.append(MessageSegment.at(user_id))
     msg.append('\n')
-    msg.append('你今日的运势是：' + _luck_translate(luck_param))
-    msg.append('\n')
     msg.append('运势指数(0-100)：{0}'.format(luck_param))
+    msg.append('\n')
+    msg.append(_draw_luck(luck_param))
     await matcher.send(msg)
 
 
