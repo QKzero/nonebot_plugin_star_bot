@@ -69,14 +69,11 @@ def _draw_luck(luck_param: int) -> str:
         assert sum(luck_weight) == 100
 
         def _weight_choices(options: list[str], weights: list[int], param: int) -> str:
-            cum_weights = [0]
-            for i in range(1, len(weights)):
-                cum_weights.append(cum_weights[-1] + weights[i])
+            cum_weights = [weights[i] for i in range(len(weights) - 1)]
+            for i in range(1, len(cum_weights)):
+                cum_weights[i] += cum_weights[i - 1]
 
-            if param in cum_weights:
-                return options[cum_weights.index(param)]
-            else:
-                return options[bisect.bisect_left(cum_weights, param)]
+            return options[bisect.bisect_right(cum_weights, param)]
 
         luck_result = _weight_choices(luck_option, luck_weight, luck_param)
 
