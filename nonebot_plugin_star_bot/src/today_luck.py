@@ -64,9 +64,27 @@ def _draw_luck(luck_param: int) -> str:
         luck_weight = [5, 10, 20, 30, 20, 10, 5]
         for option in luck_option:
             assert option in luck_sentence
+        assert len(luck_option) == len(luck_weight)
         assert sum(luck_weight) == 100
 
-        luck_result = random.choices(luck_option, weights=luck_weight, k=1)[0]
+        def _weight_choices(options: list[str], weights: list[int], param: int) -> str:
+            cum_weights = [weights[0]]
+            for i in range(1, len(weights)):
+                cum_weights.append(cum_weights[-1] + weights[i])
+
+            # Binary Search
+            left, right = -1, len(options)
+            while left < right - 1:
+                mid = (left + right) >> 1
+                if cum_weights[mid] < param:
+                    left = mid
+                else:
+                    right = mid
+                print(left, right, mid)
+
+            return options[right]
+
+        luck_result = _weight_choices(luck_option, luck_weight, luck_param)
 
         luck_text = luck_sentence[luck_result][random.randint(0, len(luck_sentence[luck_result]) - 1)]
 
