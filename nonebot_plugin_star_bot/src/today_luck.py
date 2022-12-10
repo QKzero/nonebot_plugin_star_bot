@@ -64,8 +64,7 @@ def _draw_luck(luck_param: int) -> str:
         luck_option = tuple(luck_sentence.keys())
         luck_result = luck_option[math.floor(len(luck_option) * luck_param * 0.01)]  # 百分比向下取整
 
-        luck_text = '你今日的运势是「' + luck_result + '」'
-        luck_text += luck_sentence[luck_result][random.randint(0, len(luck_sentence[luck_result]) - 1)]
+        luck_text = luck_sentence[luck_result][random.randint(0, len(luck_sentence[luck_result]) - 1)]
 
         return luck_text
 
@@ -73,7 +72,6 @@ def _draw_luck(luck_param: int) -> str:
 async def _send_luck(matcher: Type[Matcher], user_id: int, luck_param: int) -> None:
     msg = Message()
     msg.append(MessageSegment.at(user_id))
-    msg.append('\n')
     msg.append('运势指数(0-100)：{0}'.format(luck_param))
     msg.append('\n')
     msg.append(_draw_luck(luck_param))
