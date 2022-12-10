@@ -1,3 +1,4 @@
+import bisect
 import json
 import os
 import pathlib
@@ -72,17 +73,10 @@ def _draw_luck(luck_param: int) -> str:
             for i in range(1, len(weights)):
                 cum_weights.append(cum_weights[-1] + weights[i])
 
-            # Binary Search
-            left, right = -1, len(options)
-            while left < right - 1:
-                mid = (left + right) >> 1
-                if cum_weights[mid] < param:
-                    left = mid
-                else:
-                    right = mid
-                print(left, right, mid)
-
-            return options[right]
+            if param in cum_weights:
+                return options[cum_weights.index(param)]
+            else:
+                return options[bisect.bisect_left(cum_weights, param)]
 
         luck_result = _weight_choices(luck_option, luck_weight, luck_param)
 
