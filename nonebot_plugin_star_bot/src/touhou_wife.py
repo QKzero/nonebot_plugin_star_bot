@@ -1,5 +1,3 @@
-import bisect
-import datetime
 import os
 import random
 import sqlite3
@@ -61,7 +59,7 @@ async def _(bot: Bot, event: GroupMessageEvent) -> None:
         logger.error('发生异常，详细如下：\n' + traceback.format_exc())
 
 
-def _wife_pseudorandom(pool: list[int], draw_count: dict[int, int]) -> int:
+def _wife_pseudorandom(pool: list[int], draw_count: dict[int, int]) -> str:
     weight = []
     if len(draw_count) > 0:
         max_count = max(draw_count.values())
@@ -69,15 +67,12 @@ def _wife_pseudorandom(pool: list[int], draw_count: dict[int, int]) -> int:
         max_count = 0
 
     for p in pool:
-        pre_weight = 0
-        if len(weight) > 0:
-            pre_weight += weight[len(weight) - 1]
         if p in draw_count:
-            weight.append(pre_weight + max_count - draw_count[p] + 1)
+            weight.append(max_count - draw_count[p] + 1)
         else:
-            weight.append(pre_weight + max_count + 1)
+            weight.append(max_count + 1)
 
-    return bisect.bisect_right(weight, random.randint(weight[0], weight[len(weight) - 1])) - 1
+    return random.choices(pool, weights=weight, k=1)[0]
 
 
 def _draw_wife(conn: sqlite3.Connection, group_id: int, user_id: int) -> str:
@@ -102,8 +97,7 @@ def _draw_wife(conn: sqlite3.Connection, group_id: int, user_id: int) -> str:
                               .format(group_id, user_id))
         draw_count = {i[0]: i[1] for i in cursor.fetchall()}
 
-        index = _wife_pseudorandom(pool, draw_count)
-        return pool[index]
+        return _wife_pseudorandom(pool, draw_count)
 
     else:
         return ''

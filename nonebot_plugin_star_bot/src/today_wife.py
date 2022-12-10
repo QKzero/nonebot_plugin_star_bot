@@ -1,4 +1,3 @@
-import bisect
 import datetime
 import random
 import sqlite3
@@ -86,8 +85,7 @@ def _draw_wife(conn: sqlite3.Connection, bot_id: int, user_id: int, group_id: in
                               .format(group_id, user_id))
         draw_count = {i[0]: i[1] for i in cursor.fetchall()}
 
-        index = _wife_pseudorandom(pool, draw_count, last_send_time)
-        return pool[index]
+        return _wife_pseudorandom(pool, draw_count, last_send_time)
     else:
         return -1
 
@@ -101,10 +99,6 @@ def _wife_pseudorandom(pool: list[int], draw_count: dict[int, int],
         max_count = 0
 
     for member_id in pool:
-        pre_weight = 0
-        # 加入前驱
-        if len(weight) > 0:
-            pre_weight = weight[-1]
         # 自身权重
         if member_id in draw_count:
             draw_weight = max_count - draw_count[member_id] + 1
@@ -114,9 +108,9 @@ def _wife_pseudorandom(pool: list[int], draw_count: dict[int, int],
         last_send_time_weight = 1
         if member_id in last_send_time and (datetime.date.today() - last_send_time[member_id]).days < 30:
             last_send_time_weight = 1000
-        weight.append(pre_weight + draw_weight * last_send_time_weight)
+        weight.append(draw_weight * last_send_time_weight)
 
-    return bisect.bisect_right(weight, random.randint(weight[0], weight[len(weight) - 1])) - 1
+    return random.choices(pool, weights=weight, k=1)[0]
 
 
 async def _send_wife(matcher: Type[Matcher], bot: Bot, user_id: int, wife_id: int, group_id: int,

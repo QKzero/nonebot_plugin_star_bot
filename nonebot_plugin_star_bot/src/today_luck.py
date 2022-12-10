@@ -1,5 +1,4 @@
 import json
-import math
 import os
 import pathlib
 import random
@@ -61,8 +60,13 @@ def _draw_luck(luck_param: int) -> str:
     with open(file_path, mode='r', encoding='utf-8') as file:
         luck_sentence = json.load(file)
 
-        luck_option = tuple(luck_sentence.keys())
-        luck_result = luck_option[math.floor(len(luck_option) * luck_param * 0.01)]  # 百分比向下取整
+        luck_option = ['大凶', '凶', '小凶', '普', '小吉', '吉', '大吉']
+        luck_weight = [5, 10, 20, 30, 20, 10, 5]
+        for option in luck_option:
+            assert option in luck_sentence
+        assert sum(luck_weight) == 100
+
+        luck_result = random.choices(luck_option, weights=luck_weight, k=1)[0]
 
         luck_text = luck_sentence[luck_result][random.randint(0, len(luck_sentence[luck_result]) - 1)]
 
