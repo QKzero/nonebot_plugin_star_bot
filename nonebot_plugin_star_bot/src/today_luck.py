@@ -72,7 +72,6 @@ def _draw_luck(luck_param: int) -> str:
             cum_weights = [0]
             for i in range(1, len(weights)):
                 cum_weights.append(cum_weights[-1] + weights[i])
-            print(cum_weights)
 
             if param in cum_weights:
                 return options[cum_weights.index(param)]
