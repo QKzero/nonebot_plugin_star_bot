@@ -113,7 +113,7 @@ def _wife_pseudorandom(pool: list[int], draw_count: dict[int, int],
         # 最后发言时间加权
         last_send_time_weight = 1
         if member_id in last_send_time and (datetime.date.today() - last_send_time[member_id]).days < 30:
-            last_send_time_weight = 10
+            last_send_time_weight = 1000
         weight.append(pre_weight + draw_weight * last_send_time_weight)
 
     return bisect.bisect_right(weight, random.randint(weight[0], weight[len(weight) - 1])) - 1
