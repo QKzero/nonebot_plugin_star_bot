@@ -1,3 +1,4 @@
+import bisect
 import datetime
 import random
 import sqlite3
@@ -91,26 +92,39 @@ def _draw_wife(conn: sqlite3.Connection, bot_id: int, user_id: int, group_id: in
 
 
 def _wife_pseudorandom(pool: list[int], draw_count: dict[int, int],
-                       last_send_time: dict[int, datetime.date]) -> int:
-    weight = []
+                       last_send_time: dict[int, datetime.date], diff_send_day_level=None) -> int:
+    # 若池为空则返回-1
+    if len(pool) == 0:
+        return -1
+
+    # 根据最后发送时间分级
+    if diff_send_day_level is None:
+        diff_send_day_level = [5, 10, 30]
+
+    # 时间分段
+    diff_send_day_pool = [[] for i in range(len(diff_send_day_level) + 1)]
+    for member_id in pool:
+        diff_days = (datetime.date.today() - last_send_time[member_id]).days
+        diff_send_day_pool[bisect.bisect_left(diff_send_day_level, diff_days)].append(member_id)
+
+    # 所有成员加权
+    weight = {}
     if len(draw_count) > 0:
         max_count = max(draw_count.values())
     else:
         max_count = 0
 
     for member_id in pool:
-        # 自身权重
         if member_id in draw_count:
             draw_weight = max_count - draw_count[member_id] + 1
         else:
             draw_weight = max_count + 1
-        # 最后发言时间加权
-        last_send_time_weight = 1
-        if member_id in last_send_time and (datetime.date.today() - last_send_time[member_id]).days < 30:
-            last_send_time_weight = 1000
-        weight.append(draw_weight * last_send_time_weight)
+        weight[member_id] = draw_weight
 
-    return random.choices(pool, weights=weight, k=1)[0]
+    # 抽取结果
+    for p in diff_send_day_pool:
+        if len(p) > 0:
+            return random.choices(p, weights=[weight[i] for i in p], k=1)[0]
 
 
 async def _send_wife(matcher: Type[Matcher], bot: Bot, user_id: int, wife_id: int, group_id: int,
