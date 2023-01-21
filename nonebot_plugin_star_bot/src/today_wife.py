@@ -86,26 +86,31 @@ def _draw_wife(conn: sqlite3.Connection, bot_id: int, user_id: int, group_id: in
                               .format(group_id, user_id))
         draw_count = {i[0]: i[1] for i in cursor.fetchall()}
 
-        return _wife_pseudorandom(pool, draw_count, last_send_time)
+        return _wife_pseudorandom(pool, draw_count, last_send_time, group_id=group_id)
     else:
         return -1
 
 
-def _wife_pseudorandom(pool: list[int], draw_count: dict[int, int],
-                       last_send_time: dict[int, datetime.date], diff_send_day_level=None) -> int:
+def _wife_pseudorandom(pool: list[int], draw_count: dict[int, int], last_send_time: dict[int, datetime.date],
+                       group_id=None, diff_send_day_level=None) -> int:
     # 若池为空则返回-1
     if len(pool) == 0:
         return -1
 
     # 根据最后发送时间分级
     if diff_send_day_level is None:
-        diff_send_day_level = [5, 10, 30]
+        diff_send_day_level = [1, 2, 3, 5, 8, 10, 15, 20, 25, 30]
 
     # 时间分段
     diff_send_day_pool = [[] for i in range(len(diff_send_day_level) + 1)]
     for member_id in pool:
         diff_days = (datetime.date.today() - last_send_time[member_id]).days
         diff_send_day_pool[bisect.bisect_left(diff_send_day_level, diff_days)].append(member_id)
+
+    if group_id:
+        logger.info(
+            '[{0}] 今日老婆：当前分级：'.format(group_id) + str(diff_send_day_level) + '，各级卡池剩余数量：' + str(
+                [len(p) for p in diff_send_day_pool]))
 
     # 所有成员加权
     weight = {}
