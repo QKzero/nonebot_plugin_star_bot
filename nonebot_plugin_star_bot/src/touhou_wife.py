@@ -21,42 +21,84 @@ touhou_wife = on_command('star touhou', rule=rules.group_rule, aliases={'车万�
 @touhou_wife.handle()
 async def _(bot: Bot, event: GroupMessageEvent) -> None:
     try:
-        conn = sqlite3.connect(config.database_path)
-        try:
-            user_id = event.user_id
-            group_id = event.group_id
+        if event.user_id in config.super_users:
+            msg = event.get_message()
 
-            _check_database_table(conn)
+            if not msg or not msg[0]:
+                log_content = '管理员今日老婆空过，'
+                if not msg:
+                    log_content += '消息为空'
+                elif not msg[0]:
+                    log_content += '首消息为空'
+                logger.warning(log_content)
+                return
 
-            cursor = conn.execute('select wife_name from touhou_wife '
-                                  'where user_id={0} and group_id={1} and date_time="{2}"'
-                                  .format(user_id, group_id, util.get_wife_date()))
-            record = [i[0] for i in cursor.fetchall()]
-
-            if len(record) == 0:
-                wife_name = _draw_wife(conn, group_id, user_id)
-
-                if wife_name == '':
-                    await touhou_wife.send(_no_wife_message(user_id=user_id))
-                else:
-                    conn.execute('insert into touhou_wife(user_id, group_id, wife_name, date_time) values '
-                                 '({0}, {1}, "{2}", "{3}")'.format(user_id, group_id, wife_name, util.get_wife_date()))
-                    conn.commit()
-                    await _send_wife(matcher=touhou_wife, user_id=user_id, wife_name=wife_name)
+            if len(msg) < 3:
+                await _draw_wife(bot, event)
             else:
-                wife_name = record[0]
-                await _send_wife(matcher=touhou_wife, user_id=user_id, wife_name=wife_name)
+                user_id = None
+                wife_name = None
+                for seg in msg:
+                    if user_id is None and seg.type == 'at':
+                        user_id = int(seg.data.get("qq", "0"))
+                    if user_id and wife_name is None and seg and seg.type == 'text':
+                        wife_name = seg.data.get('text', '')
+                        wife_name = wife_name.strip()
 
-                await util.wife_date_remind(matcher=touhou_wife)
-
-        except:
-            raise
-
-        finally:
-            conn.close()
-
+                if user_id > 0 and wife_name != '':
+                    await _set_wife(bot, event, user_id, wife_name)
+                else:
+                    await _draw_wife(bot, event)
+        else:
+            await _draw_wife(bot, event)
     except:
         logger.error('发生异常，详细如下：\n' + traceback.format_exc())
+
+
+async def _set_wife(bot: Bot, event: GroupMessageEvent, user_id: int, wife_name: str) -> None:
+    group_id = event.group_id
+
+    conn = sqlite3.connect(config.database_path)
+    conn.execute('replace into touhou_wife(user_id, group_id, wife_name, date_time) values '
+                 '({0}, {1}, "{2}", "{3}")'.format(user_id, group_id, wife_name, util.get_wife_date()))
+    conn.commit()
+    await _send_wife(matcher=touhou_wife, user_id=user_id, wife_name=wife_name)
+
+
+async def _draw_wife(bot: Bot, event: GroupMessageEvent) -> None:
+    conn = sqlite3.connect(config.database_path)
+    try:
+        user_id = event.user_id
+        group_id = event.group_id
+
+        _check_database_table(conn)
+
+        cursor = conn.execute('select wife_name from touhou_wife '
+                              'where user_id={0} and group_id={1} and date_time="{2}"'
+                              .format(user_id, group_id, util.get_wife_date()))
+        record = [i[0] for i in cursor.fetchall()]
+
+        if len(record) == 0:
+            wife_name = _draw_wife_from_pool(conn, group_id, user_id)
+
+            if wife_name == '':
+                await touhou_wife.send(_no_wife_message(user_id=user_id))
+            else:
+                conn.execute('insert into touhou_wife(user_id, group_id, wife_name, date_time) values '
+                             '({0}, {1}, "{2}", "{3}")'.format(user_id, group_id, wife_name, util.get_wife_date()))
+                conn.commit()
+                await _send_wife(matcher=touhou_wife, user_id=user_id, wife_name=wife_name)
+        else:
+            wife_name = record[0]
+            await _send_wife(matcher=touhou_wife, user_id=user_id, wife_name=wife_name)
+
+            await util.wife_date_remind(matcher=touhou_wife)
+
+    except:
+        raise
+
+    finally:
+        conn.close()
 
 
 def _wife_pseudorandom(pool: list[int], draw_count: dict[int, int]) -> str:
@@ -75,7 +117,7 @@ def _wife_pseudorandom(pool: list[int], draw_count: dict[int, int]) -> str:
     return random.choices(pool, weights=weight, k=1)[0]
 
 
-def _draw_wife(conn: sqlite3.Connection, group_id: int, user_id: int) -> str:
+def _draw_wife_from_pool(conn: sqlite3.Connection, group_id: int, user_id: int) -> str:
     def __exclude_data(data: list, exclusion: set) -> list:
         data_dp = []
         for d in data:

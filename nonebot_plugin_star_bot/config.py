@@ -6,6 +6,9 @@ from nonebot.log import logger
 # 全局配置项
 _config = get_driver().config.dict()
 
+super_users = _config.get('superusers', [])
+super_users = {int(i) for i in super_users}
+
 if 'star_group' not in _config:
     logger.warning('[star_bot] 未发现配置项 `star_group` , 采用默认值: []')
 

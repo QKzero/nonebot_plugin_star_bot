@@ -4,7 +4,7 @@ import random
 import sqlite3
 import time
 import traceback
-from typing import Type
+from typing import Type, Tuple
 
 from nonebot import on_command
 from nonebot.log import logger
@@ -21,53 +21,96 @@ today_wife = on_command('star wife', rule=rules.group_rule, aliases={'今日老�
 @today_wife.handle()
 async def _(bot: Bot, event: GroupMessageEvent) -> None:
     try:
-        conn = sqlite3.connect(config.database_path)
+        if event.user_id in config.super_users:
+            msg = event.get_message()
 
-        try:
-            bot_id = int(bot.self_id)
-            user_id = event.user_id
-            group_id = event.group_id
-            member_list = await bot.get_group_member_list(group_id=group_id)
-            last_send_time = {member['user_id']: datetime.date(*(time.localtime(member['last_sent_time']))[:-6]) for
-                              member in member_list}
-            member_list = [member['user_id'] for member in member_list]
+            if not msg or not msg[0]:
+                log_content = '管理员今日老婆空过，'
+                if not msg:
+                    log_content += '消息为空'
+                elif not msg[0]:
+                    log_content += '首消息为空'
+                logger.warning(log_content)
+                return
 
-            _check_database_table(conn)
-
-            cursor = conn.execute('select wife_id from today_wife '
-                                  'where user_id={0} and group_id={1} and date_time="{2}"'
-                                  .format(user_id, group_id, util.get_wife_date()))
-            record = [i[0] for i in cursor.fetchall()]
-
-            if len(record) == 0:
-                wife_id = _draw_wife(conn=conn, bot_id=bot_id, user_id=user_id, group_id=group_id,
-                                     member_list=member_list, last_send_time=last_send_time)
-                if wife_id == -1:
-                    await today_wife.send(_no_wife_message(user_id=user_id))
-                else:
-                    conn.execute('insert into today_wife(user_id, group_id, wife_id, date_time) values '
-                                 '({0}, {1}, {2}, "{3}")'.format(user_id, group_id, wife_id, util.get_wife_date()))
-                    conn.execute('insert into today_wife(user_id, group_id, wife_id, date_time) values '
-                                 '({0}, {1}, {2}, "{3}")'.format(wife_id, group_id, user_id, util.get_wife_date()))
-                    conn.commit()
-                    await _send_wife(matcher=today_wife, bot=bot, user_id=user_id, wife_id=wife_id, group_id=group_id,
-                                     member_list=member_list)
+            if len(msg) < 3:
+                await _draw_wife(bot, event)
             else:
-                wife_id = record[0]
-                await _send_wife(matcher=today_wife, bot=bot, user_id=user_id, wife_id=wife_id, group_id=group_id,
-                                 member_list=member_list)
+                ids = []
+                for seg in msg:
+                    if seg.type == 'at':
+                        ids.append(int(seg.data.get("qq", "0")))
 
-                await util.wife_date_remind(matcher=today_wife)
-
-        except:
-            raise
-
+                if len(ids) >= 2:
+                    await _set_wife(bot, event, ids[0], ids[1])
+                else:
+                    await _draw_wife(bot, event)
+        else:
+            await _draw_wife(bot, event)
     except:
         logger.error('发生异常，详细如下：\n' + traceback.format_exc())
 
 
-def _draw_wife(conn: sqlite3.Connection, bot_id: int, user_id: int, group_id: int, member_list: list[int],
-               last_send_time: dict[int, datetime.date]) -> int:
+async def _set_wife(bot: Bot, event: GroupMessageEvent, first_wife_id: int, second_wife_id: int) -> None:
+    group_id = event.group_id
+    member_list = await bot.get_group_member_list(group_id=group_id)
+    member_list = [member['user_id'] for member in member_list]
+
+    conn = sqlite3.connect(config.database_path)
+    conn.execute('replace into today_wife(user_id, group_id, wife_id, date_time) values '
+                 '({0}, {1}, {2}, "{3}")'.format(first_wife_id, group_id, second_wife_id, util.get_wife_date()))
+    conn.execute('replace into today_wife(user_id, group_id, wife_id, date_time) values '
+                 '({0}, {1}, {2}, "{3}")'.format(first_wife_id, group_id, second_wife_id, util.get_wife_date()))
+    conn.commit()
+    await _send_wife(matcher=today_wife, bot=bot, user_id=first_wife_id, wife_id=second_wife_id, group_id=group_id,
+                     member_list=member_list)
+
+
+async def _draw_wife(bot: Bot, event: GroupMessageEvent) -> None:
+    conn = sqlite3.connect(config.database_path)
+
+    try:
+        bot_id = int(bot.self_id)
+        user_id = event.user_id
+        group_id = event.group_id
+        member_list = await bot.get_group_member_list(group_id=group_id)
+        last_send_time = {member['user_id']: datetime.date(*(time.localtime(member['last_sent_time']))[:-6]) for
+                          member in member_list}
+        member_list = [member['user_id'] for member in member_list]
+
+        _check_database_table(conn)
+
+        cursor = conn.execute('select wife_id from today_wife '
+                              'where user_id={0} and group_id={1} and date_time="{2}"'
+                              .format(user_id, group_id, util.get_wife_date()))
+        record = [i[0] for i in cursor.fetchall()]
+
+        if len(record) == 0:
+            wife_id = _draw_wife_from_pool(conn=conn, bot_id=bot_id, user_id=user_id, group_id=group_id,
+                                           member_list=member_list, last_send_time=last_send_time)
+            if wife_id == -1:
+                await today_wife.send(_no_wife_message(user_id=user_id))
+            else:
+                conn.execute('insert into today_wife(user_id, group_id, wife_id, date_time) values '
+                             '({0}, {1}, {2}, "{3}")'.format(user_id, group_id, wife_id, util.get_wife_date()))
+                conn.execute('insert into today_wife(user_id, group_id, wife_id, date_time) values '
+                             '({0}, {1}, {2}, "{3}")'.format(wife_id, group_id, user_id, util.get_wife_date()))
+                conn.commit()
+                await _send_wife(matcher=today_wife, bot=bot, user_id=user_id, wife_id=wife_id, group_id=group_id,
+                                 member_list=member_list)
+        else:
+            wife_id = record[0]
+            await _send_wife(matcher=today_wife, bot=bot, user_id=user_id, wife_id=wife_id, group_id=group_id,
+                             member_list=member_list)
+
+            await util.wife_date_remind(matcher=today_wife)
+
+    except:
+        raise
+
+
+def _draw_wife_from_pool(conn: sqlite3.Connection, bot_id: int, user_id: int, group_id: int, member_list: list[int],
+                         last_send_time: dict[int, datetime.date]) -> int:
     cursor = conn.execute('select wife_id from today_wife where group_id={0} and date_time="{1}"'
                           .format(group_id, util.get_wife_date()))
     exclusion = {i[0] for i in cursor.fetchall()}
@@ -101,10 +144,13 @@ def _wife_pseudorandom(pool: list[int], draw_count: dict[int, int], last_send_ti
     if diff_send_day_level is None:
         diff_send_day_level = [1, 2, 3, 5, 8, 10, 15, 20, 25, 30]
 
+    # 最晚发送时间
+    max_last_send_time = max(last_send_time.values())
+
     # 时间分段
     diff_send_day_pool = [[] for i in range(len(diff_send_day_level) + 1)]
     for member_id in pool:
-        diff_days = (datetime.date.today() - last_send_time[member_id]).days
+        diff_days = (max_last_send_time - last_send_time[member_id]).days
         diff_send_day_pool[bisect.bisect_left(diff_send_day_level, diff_days)].append(member_id)
 
     if group_id:
