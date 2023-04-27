@@ -57,10 +57,16 @@ async def _set_wife(bot: Bot, event: GroupMessageEvent, first_wife_id: int, seco
     member_list = [member['user_id'] for member in member_list]
 
     conn = sqlite3.connect(config.database_path)
+    conn.execute(
+        'delete from today_wife where group_id={0} and wife_id={1} and date_time="{2}"'.format(group_id, first_wife_id,
+                                                                                               util.get_wife_date()))
+    conn.execute(
+        'delete from today_wife where group_id={0} and wife_id={1} and date_time="{2}"'.format(group_id, second_wife_id,
+                                                                                               util.get_wife_date()))
     conn.execute('replace into today_wife(user_id, group_id, wife_id, date_time) values '
                  '({0}, {1}, {2}, "{3}")'.format(first_wife_id, group_id, second_wife_id, util.get_wife_date()))
     conn.execute('replace into today_wife(user_id, group_id, wife_id, date_time) values '
-                 '({0}, {1}, {2}, "{3}")'.format(first_wife_id, group_id, second_wife_id, util.get_wife_date()))
+                 '({0}, {1}, {2}, "{3}")'.format(second_wife_id, group_id, first_wife_id, util.get_wife_date()))
     conn.commit()
     await _send_wife(matcher=today_wife, bot=bot, user_id=first_wife_id, wife_id=second_wife_id, group_id=group_id,
                      member_list=member_list)

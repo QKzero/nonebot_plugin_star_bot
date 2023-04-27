@@ -59,6 +59,9 @@ async def _set_wife(bot: Bot, event: GroupMessageEvent, user_id: int, wife_name:
     group_id = event.group_id
 
     conn = sqlite3.connect(config.database_path)
+    conn.execute(
+        'delete from touhou_wife where group_id={0} and wife_name="{1}" and date_time="{2}"'.format(group_id, wife_name,
+                                                                                               util.get_wife_date()))
     conn.execute('replace into touhou_wife(user_id, group_id, wife_name, date_time) values '
                  '({0}, {1}, "{2}", "{3}")'.format(user_id, group_id, wife_name, util.get_wife_date()))
     conn.commit()
