@@ -1,5 +1,5 @@
 # Star_bot
-A entertainment plug based on NoneBot2 for my own use.
+An entertainment plugin based on NoneBot2 for my own use.
 
 ## Remind
 This project has been interrupted maintaining because of some personal reasons.
